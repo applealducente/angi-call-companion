@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Angi Call Companion — AI Agent Navigator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: #0a0a0a;
+      color: #e4e4e4;
+      line-height: 1.6;
+    }
+    
+    .app-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 32px;
+      background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .header-left { display: flex; align-items: center; gap: 32px; }
+    .header h1 { font-size: 20px; font-weight: 400; letter-spacing: -0.5px; }
+    
+    .header-info {
+      display: flex;
+      gap: 32px;
+      font-size: 13px;
+    }
+    
+    .header-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .header-info-label { color: #666; font-size: 12px; }
+    .header-info-value { color: #e4e4e4; font-weight: 500; }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #51cf66;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.recording { background: #ff6b6b; }
+    
+    @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+    
+    button {
+      padding: 10px 16px;
+      border: 1px solid #333;
+      background: #0f0f0f;
+      color: #e4e4e4;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    button:hover {
+      background: #1a1a1a;
+      border-color: #444;
+    }
+    
+    button.primary {
+      background: #e4e4e4;
+      color: #000;
+      border-color: #e4e4e4;
+    }
+    
+    button.primary:hover {
+      background: #d0d0d0;
+      border-color: #d0d0d0;
+    }
+    
+    button.danger {
+      background: #ff6b6b;
+      color: #000;
+      border-color: #ff6b6b;
+    }
+    
+    button.danger:hover {
+      background: #ff5252;
+      border-color: #ff5252;
+    }
+    
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .panel {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 550px;
+    }
+    
+    .panel-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e4e4e4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    
+    .feed {
+      flex: 1;
+      overflow-y: auto;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 16px;
+      font-size: 13px;
+    }
+    
+    .feed-item {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 4px;
+      border-left: 3px solid;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .feed-item.agent {
+      border-left-color: #4a9eff;
+      background: rgba(74, 158, 255, 0.08);
+      color: #a8d5ff;
+    }
+    
+    .feed-item.customer {
+      border-left-color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.08);
+      color: #ffa3a3;
+    }
+    
+    .feed-label {
+      font-weight: 600;
+      font-size: 11px;
+      opacity: 0.6;
+      margin-bottom: 2px;
+    }
+    
+    textarea {
+      width: 100%;
+      padding: 12px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      color: #e4e4e4;
+      font-family: inherit;
+      font-size: 13px;
+      resize: none;
+      min-height: 80px;
+    }
+    
+    textarea:focus {
+      outline: none;
+      border-color: #4a9eff;
+      box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .button-group button {
+      flex: 1;
+    }
+    
+    .response-box {
+      background: #0f0f0f;
+      border: 2px solid #51cf66;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 140px;
+    }
+    
+    .response-type {
+      font-size: 11px;
+      font-weight: 600;
+      color: #51cf66;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    
+    .response-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #e4e4e4;
+      margin-bottom: 12px;
+    }
+    
+    .response-actions {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+    }
+    
+    .response-actions button {
+      flex: 1;
+      padding: 8px 12px;
+      background: #51cf66;
+      color: #000;
+      border-color: #51cf66;
+      font-size: 12px;
+    }
+    
+    .response-actions button:hover {
+      background: #40c057;
+      border-color: #40c057;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #333;
+      border-top: 2px solid #4a9eff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .nav-tabs {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .nav-tabs button {
+      flex: 0 0 auto;
+      padding: 10px 20px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-size: 13px;
+      border-radius: 6px;
+    }
+    
+    .nav-tabs button.active {
+      background: #e4e4e4;
+      color: #000;
+      border-color: #e4e4e4;
+    }
+    
+    .page { display: none; }
+    .page.active { display: grid; }
+    
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal.active { display: flex; }
+    
+    .modal-content {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 480px;
+      width: 90%;
+    }
+    
+    .modal-title {
+      font-size: 24px;
+      font-weight: 400;
+      margin-bottom: 32px;
+      letter-spacing: -0.5px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .form-group label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+    }
+    
+    .form-group input,
+    .form-group select {
+      padding: 12px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      color: #e4e4e4;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #4a9eff;
+      box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+    }
+    
+    .ai-status {
+      font-size: 12px;
+      padding: 10px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      color: #888;
+    }
+    
+    .ai-status.active { color: #51cf66; border-color: #51cf66; }
+    
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    .quick-btn {
+      padding: 12px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      color: #ccc;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .quick-btn:hover {
+      background: #1a1a1a;
+      border-color: #51cf66;
+      color: #51cf66;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+  
+  <!-- Navigation -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" data-tab="companion">Call Companion</button>
+    <button class="tab-btn" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="workflows">Workflows</button>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal active">
+    <div class="modal-content">
+      <div class="modal-title">Angi Call Companion</div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="agentName" placeholder="Your name" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="agentEmail" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Team</label>
+          <select id="agentTeam" required>
+            <option value="">Select your team</option>
+            <option value="Team A">Team A</option>
+            <option value="Team B">Team B</option>
+            <option value="Sales">Sales Team</option>
+          </select>
+        </div>
+        <button type="submit" class="primary" style="width: 100%; margin-top: 24px; padding: 12px;">Start Session</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- PAGE: COMPANION -->
+  <div id="companionPage" class="page active" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr;">
+    
+    <!-- Header -->
+    <div class="header" style="grid-column: 1 / -1;">
+      <div class="header-left">
+        <h1>Call Companion</h1>
+      </div>
+      <div class="header-info">
+        <div class="header-info-item">
+          <div class="header-info-label">Agent</div>
+          <div class="header-info-value" id="displayName">—</div>
+        </div>
+        <div class="header-info-item">
+          <div class="header-info-label">Call</div>
+          <div class="header-info-value" id="callNumber">—</div>
+        </div>
+        <div class="header-info-item" style="flex-direction: row; align-items: center; gap: 8px;">
+          <div class="status-indicator" id="statusDot"></div>
+          <div class="header-info-value" id="statusText">Ready</div>
+        </div>
+      </div>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+    
+    <!-- Left: Transcript -->
+    <div class="panel">
+      <div class="panel-header">📞 Live Transcript</div>
+      <div class="feed" id="transcriptFeed">
+        <div style="color: #666; text-align: center; padding: 60px 0;">Waiting for audio...</div>
+      </div>
+      <button id="transcribeBtn" class="primary" onclick="toggleTranscription()" style="width: 100%;">🎙️ Start Listening</button>
+      <div class="ai-status" id="aiStatus">Ready</div>
+    </div>
+    
+    <!-- Center: Input & Actions -->
+    <div class="panel">
+      <div class="panel-header">📋 What's Happening?</div>
+      
+      <div style="flex: 1; overflow-y: auto;">
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 12px; color: #888; margin-bottom: 8px; display: block;">Quick Actions</label>
+          <div class="quick-actions">
+            <div class="quick-btn" onclick="requestHelp('objection')">Handle Objection</div>
+            <div class="quick-btn" onclick="requestHelp('process')">What's Next?</div>
+            <div class="quick-btn" onclick="requestHelp('upgrade')">Upgrade Path</div>
+            <div class="quick-btn" onclick="requestHelp('policy')">Policy Q</div>
+          </div>
+        </div>
+        
+        <div>
+          <label style="font-size: 12px; color: #888; margin-bottom: 8px; display: block;">Or describe the situation</label>
+          <textarea id="manualInput" placeholder="e.g. 'Customer too expensive' or 'Need to upgrade them to FCF'"></textarea>
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button class="primary" onclick="generateAI()">Get AI Help</button>
+        <button onclick="endBooking()" style="background: #ffd43b; color: #000;">✓ Booking</button>
+      </div>
+      <button onclick="resetCall()" class="danger" style="width: 100%;">End Call</button>
+    </div>
+    
+    <!-- Right: AI Response -->
+    <div class="panel">
+      <div class="panel-header">🤖 AI Guidance</div>
+      <div id="rebuttalContainer" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #666; text-align: center;">
+        Waiting for input...
+      </div>
+    </div>
+    
+  </div>
+
+  <!-- PAGE: DASHBOARD -->
+  <div id="dashboardPage" class="page" style="grid-column: 1 / -1;">
+    <div class="header" style="grid-column: 1 / -1;">
+      <h1>Dashboard</h1>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+    <div class="panel" style="grid-column: 1 / -1;">
+      <div class="panel-header">Session History</div>
+      <div style="color: #888; text-align: center; padding: 40px;">Sessions tracked in real-time</div>
+    </div>
+  </div>
+
+  <!-- PAGE: WORKFLOWS -->
+  <div id="workflowsPage" class="page" style="grid-column: 1 / -1;">
+    <div class="header" style="grid-column: 1 / -1;">
+      <h1>Workflows</h1>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+    <div class="panel" style="grid-column: 1 / 2;">
+      <div class="panel-header">Your Company Process</div>
+      <div style="color: #888; font-size: 12px; line-height: 1.8;">
+        <div style="margin-bottom: 12px;"><strong>After FCF Purchase:</strong></div>
+        <div style="opacity: 0.7;">
+          1. Confirm address & phone<br/>
+          2. Ask about pet allergies<br/>
+          3. Mention 48hr booking window<br/>
+          4. Send SMS confirmation<br/>
+          5. Update CRM to "FCF Active"
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="grid-column: 2 / -1;">
+      <div class="panel-header">Objection Strategies</div>
+      <div style="color: #888; font-size: 12px; line-height: 1.8;">
+        <div style="margin-bottom: 12px;"><strong>"Too Expensive":</strong></div>
+        <div style="opacity: 0.7;">
+          Use math: time value + member pricing discount
+        </div>
+        <div style="margin-bottom: 12px; margin-top: 12px;"><strong>"Need Time":</strong></div>
+        <div style="opacity: 0.7;">
+          Ask trigger → tentative booking → next step
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let agent = null;
+  let currentCall = null;
+  let sessionHistory = [];
+  let isTranscribing = false;
+  let recognitionInstance = null;
+  let conversationHistory = [];
+  
+  // Navigation
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      e.target.classList.add('active');
+      document.getElementById(e.target.dataset.tab + 'Page').classList.add('active');
+    });
+  });
+  
+  // Login
+  document.getElementById('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    agent = {
+      name: document.getElementById('agentName').value,
+      email: document.getElementById('agentEmail').value,
+      team: document.getElementById('agentTeam').value,
+      sessionId: Date.now()
+    };
+    document.getElementById('loginModal').classList.remove('active');
+    document.getElementById('displayName').textContent = agent.name;
+    startNewCall();
+  });
+  
+  function startNewCall() {
+    currentCall = {
+      startTime: Date.now(),
+      messages: [],
+      outcome: null,
+      agent: agent.name
+    };
+    conversationHistory = [];
+    document.getElementById('callNumber').textContent = `#${sessionHistory.length + 1}`;
+    document.getElementById('transcriptFeed').innerHTML = '<div style="color: #666; text-align: center; padding: 60px 0;">Waiting for audio...</div>';
+  }
+  
+  function logout() {
+    if (currentCall && currentCall.outcome) sessionHistory.push(currentCall);
+    agent = null;
+    if (isTranscribing) stopTranscription();
+    document.getElementById('loginModal').classList.add('active');
+  }
+  
+  // Transcription
+  function toggleTranscription() {
+    if (isTranscribing) stopTranscription();
+    else startTranscription();
+  }
+  
+  function startTranscription() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return alert('Speech Recognition not supported');
+    
+    recognitionInstance = new SR();
+    recognitionInstance.continuous = true;
+    recognitionInstance.interimResults = true;
+    recognitionInstance.lang = 'en-US';
+    
+    recognitionInstance.onstart = () => {
+      isTranscribing = true;
+      document.getElementById('transcribeBtn').textContent = '⏹ Stop Listening';
+      document.getElementById('statusDot').classList.add('recording');
+      document.getElementById('statusText').textContent = 'Recording...';
+    };
+    
+    recognitionInstance.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i].transcript;
+        if (e.results[i].isFinal) {
+          currentCall.messages.push({ role: 'customer', content: transcript });
+          addTranscriptLine('customer', transcript);
+          generateAIFromTranscript(transcript);
+        }
+      }
+    };
+    
+    recognitionInstance.onend = () => {
+      isTranscribing = false;
+      document.getElementById('transcribeBtn').textContent = '🎙️ Start Listening';
+      document.getElementById('statusDot').classList.remove('recording');
+      document.getElementById('statusText').textContent = 'Ready';
+    };
+    
+    recognitionInstance.start();
+  }
+  
+  function stopTranscription() {
+    if (recognitionInstance) recognitionInstance.stop();
+    isTranscribing = false;
+  }
+  
+  function addTranscriptLine(role, text) {
+    const feed = document.getElementById('transcriptFeed');
+    if (feed.innerHTML.includes('Waiting for audio')) feed.innerHTML = '';
+    const line = document.createElement('div');
+    line.className = `feed-item ${role}`;
+    line.innerHTML = `<div class="feed-label">${role === 'agent' ? 'Agent' : 'Customer'}</div><div>${text}</div>`;
+    feed.appendChild(line);
+    feed.scrollTop = feed.scrollHeight;
+  }
+  
+  // AI Generation (calls backend API instead of Claude directly)
+  function requestHelp(type) {
+    let prompt = '';
+    switch(type) {
+      case 'objection': prompt = "Agent needs to handle a customer objection. Suggest a rebuttal."; break;
+      case 'process': prompt = "Agent doesn't know the next step. Guide them through the process."; break;
+      case 'upgrade': prompt = "Customer wants to upgrade. Walk agent through the upgrade path."; break;
+      case 'policy': prompt = "Customer asking about company policy. Give the agent the answer."; break;
+    }
+    document.getElementById('manualInput').value = prompt;
+    generateAI();
+  }
+  
+  async function generateAI() {
+    const input = document.getElementById('manualInput').value.trim();
+    if (!input) return alert('Describe what you need.');
+    
+    document.getElementById('rebuttalContainer').innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top: 16px;">Generating...</div></div>';
+    
+    try {
+      // Call backend API (API key is safe on server)
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: buildPrompt(input) })
+      });
+      
+      if (!response.ok) throw new Error('API Error');
+      const data = await response.json();
+      showResponse(data.text);
+    } catch(e) {
+      showResponse('Use the pricing ladder: $59 → $54 → $49. Never back down on objections.');
+    }
+  }
+  
+  async function generateAIFromTranscript(customerInput) {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: `Customer: "${customerInput}"\n\nGenerate agent's next line (2-3 sentences max). Relentless, never back down.` })
+      });
+      
+      if (!response.ok) throw new Error('API Error');
+      const data = await response.json();
+      showResponse(data.text);
+    } catch(e) {
+      console.error(e);
+    }
+  }
+  
+  function buildPrompt(input) {
+    return `You are an Angi sales coach. Agent says: "${input}"\n\nGenerate exactly what they should say next. 2-3 sentences. Relentless, consultative, never suggest backing down.`;
+  }
+  
+  function showResponse(text) {
+    const container = document.getElementById('rebuttalContainer');
+    container.innerHTML = `
+      <div class="response-box">
+        <div class="response-type">Next Line</div>
+        <div class="response-text">${text}</div>
+        <div class="response-actions">
+          <button onclick="copyResponse()">📋 Copy</button>
+          <button onclick="useResponse()">✓ Got It</button>
+          <button onclick="regenerate()">🔄 New</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  function copyResponse() {
+    const text = document.querySelector('.response-text').textContent;
+    navigator.clipboard.writeText(text);
+    alert('Copied!');
+  }
+  
+  function useResponse() {
+    const text = document.querySelector('.response-text').textContent;
+    addTranscriptLine('agent', text);
+    document.getElementById('rebuttalContainer').innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">Ready for next input...</div>';
+  }
+  
+  function regenerate() { generateAI(); }
+  function endBooking() { alert('Booking mode activated'); }
+  
+  function resetCall() {
+    if (confirm('End call?')) {
+      const outcome = prompt('Outcome (yes/trial/otc/no):');
+      if (['yes','trial','otc','no'].includes(outcome)) {
+        currentCall.outcome = outcome;
+        sessionHistory.push(currentCall);
+        startNewCall();
+        stopTranscription();
+      }
+    }
+  }
+  
+  startNewCall();
+</script>
+
+</body>
+</html>

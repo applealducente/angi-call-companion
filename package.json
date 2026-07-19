@@ -1,0 +1,13 @@
+{
+  "name": "angi-call-companion",
+  "version": "1.0.0",
+  "description": "AI-powered call teleprompter for Angi agents",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build complete'"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "devDependencies": {}
+}
