@@ -1,5 +1,6 @@
 {
-  "buildCommand": "echo 'Ready to deploy'",
+  "buildCommand": "echo 'Build complete'",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/api/(.*)",
