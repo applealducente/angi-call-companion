@@ -583,7 +583,7 @@
       startTime: Date.now(),
       messages: [],
       outcome: null,
-      agent: agent.name
+      agent: agent ? agent.name : 'Unknown'
     };
     conversationHistory = [];
     document.getElementById('callNumber').textContent = `#${sessionHistory.length + 1}`;
@@ -675,18 +675,23 @@
     document.getElementById('rebuttalContainer').innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top: 16px;">Generating...</div></div>';
     
     try {
-      // Call backend API (API key is safe on server)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: buildPrompt(input) })
       });
       
-      if (!response.ok) throw new Error('API Error');
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('API Error:', data);
+        throw new Error(data.error || 'API Error');
+      }
+      
       showResponse(data.text);
     } catch(e) {
-      showResponse('Use the pricing ladder: $59 → $54 → $49. Never back down on objections.');
+      console.error('generateAI error:', e);
+      showResponse('API Error: ' + e.message + '. Check Vercel environment variables.');
     }
   }
   
