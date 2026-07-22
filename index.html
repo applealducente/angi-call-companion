@@ -227,7 +227,7 @@
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">📞 Start Capturing</button>
-        <div class="cap-hint" id="capHint">Select your call tab when prompted</div>
+        <div class="cap-hint" id="capHint">Captures call audio through headset/speaker</div>
       </div>
     </div>
 
@@ -427,41 +427,24 @@
 
   async function startCapture() {
     try {
-      // Step 1: Get mic access (for speech recognition engine)
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Step 2: Get call audio (tab or system) — customer voice
-      // Ask to share tab — Chrome shows tab picker
-      // Agent selects the tab where their call is running (Aircall, Zoom, Meet etc)
-      let callStream = null;
-      try {
-        callStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { width: 1, height: 1 },
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-        });
-        callStream.getVideoTracks().forEach(t => t.stop());
-        if (callStream.getAudioTracks().length === 0) {
-          callStream = null;
-          toast('No call audio detected — using mic only', 'err');
-        } else {
-          callStream.getAudioTracks()[0].addEventListener('ended', () => {
-            if (isCapturing) { toast('Call audio ended — click Start Capturing again', 'err'); stopCapture(); }
-          });
-          toast('✅ Call audio captured — customer voice active', 'ok');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          googEchoCancellation: false,
+          googNoiseSuppression: false,
+          googAutoGainControl: false,
+          googHighpassFilter: false
         }
-      } catch(e) {
-        // User cancelled tab picker — use mic only (speaker/headset bleed)
-        callStream = null;
-        toast('🎙️ Mic only — turn call volume up for customer capture', 'ok');
-      }
-
-      startCaptureLoop(callStream);
-      activateCapture(callStream ? '📞 Call audio + mic active' : '🎙️ Mic active — turn volume up');
-
+      });
+      startCaptureLoop(stream);
+      activateCapture('🎙️ Capturing — both sides');
     } catch(e) {
-      toast('Mic access denied — click the 🔒 lock icon → allow Microphone', 'err');
+      toast('Mic access denied — allow microphone in Chrome settings', 'err');
     }
   }
+
 
   // Check if captured text is the agent reading the AI script
   // Returns true if it should be IGNORED (agent voice)
