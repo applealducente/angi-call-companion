@@ -485,53 +485,39 @@
 
   function startCaptureLoop(inputStream) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
+    if (!SR) { toast('Use Chrome', 'err'); return; }
 
-    let r = null;
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = 'en-US';
 
-    function start() {
-      if (!isCapturing) return;
-      try {
-        r = new SR();
-        activeRecognition = r;
-        r.continuous = true;
-        r.interimResults = true;
-        r.lang = 'en-US';
-
-        r.onresult = e => {
-          for (let i = e.resultIndex; i < e.results.length; i++) {
-            const t = e.results[i][0].transcript.trim();
-            if (e.results[i].isFinal) {
-              if (t.length < 2) continue;
-              addLine('customer', t);
-              convCtx.push({ role: 'customer', content: t });
-              document.getElementById('interimText').textContent = '—';
-              setTimeout(() => scheduleAutoAI(t), 0);
-            } else {
-              if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
-            }
-          }
-        };
-
-        r.onend = () => {
-          if (isCapturing) setTimeout(start, 50);
-        };
-
-        r.onerror = e => {
-          if (e.error === 'no-speech' || e.error === 'aborted') return;
-          if (isCapturing) setTimeout(start, 200);
-        };
-
-        r.start();
-      } catch(e) {
-        if (isCapturing) setTimeout(start, 300);
+    r.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal) {
+          if (t.length < 2) continue;
+          addLine('customer', t);
+          convCtx.push({ role: 'customer', content: t });
+          document.getElementById('interimText').textContent = '—';
+          setTimeout(() => scheduleAutoAI(t), 0);
+        } else {
+          if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
+        }
       }
-    }
+    };
 
-    if (activeRecognition) {
-      try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
-    }
-    start();
+    r.onend = () => {
+      if (isCapturing) r.start();
+    };
+
+    r.onerror = e => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      if (isCapturing) r.start();
+    };
+
+    activeRecognition = r;
+    r.start();
   }
 
 
