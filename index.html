@@ -483,7 +483,7 @@
 
 
 
-  function startCaptureLoop(audioStream) {
+  function startCaptureLoop(inputStream) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
@@ -494,10 +494,10 @@
 
     // If we have a custom audio stream (tab audio), use MediaRecorder
     // to verify it's working — SpeechRecognition uses default mic always
-    if (audioStream && audioStream.getAudioTracks().length > 0) {
-      console.log('Tab audio stream active:', audioStream.getAudioTracks()[0].label);
+    if (inputStream && inputStream.getAudioTracks && inputStream.getAudioTracks().length > 0) {
+      console.log('Stream active');
       // Monitor stream health
-      audioStream.getAudioTracks()[0].addEventListener('ended', () => {
+      inputStream.getAudioTracks()[0].addEventListener('ended', () => {
         if (isCapturing) { toast('Audio stream ended — recapturing', 'err'); stopCapture(); }
       });
     }
