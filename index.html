@@ -209,7 +209,7 @@
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">🎙️ Start Capturing</button>
-        <div class="cap-hint" id="capHint">Pick any window → check "Share system audio"</div>
+        <div class="cap-hint" id="capHint">Select screen → ✅ Share system audio</div>
       </div>
     </div>
 
@@ -408,9 +408,10 @@
 
   async function startCapture() {
     try {
-      // Grab system audio directly — no picker, no video, just audio
+      // Chrome on Windows requires video:true for getDisplayMedia
+      // We request it but immediately stop video tracks — only audio matters
       const sysStream = await navigator.mediaDevices.getDisplayMedia({
-        video: false,
+        video: true,
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
@@ -418,6 +419,11 @@
           sampleRate: 44100
         }
       });
+
+      // Stop video immediately — we only want audio
+      sysStream.getVideoTracks().forEach(t => t.stop());
+
+      const hasSysAudio = sysStream.getAudioTracks().length > 0;
 
       // Also grab mic
       let micStream = null;
@@ -431,55 +437,58 @@
         });
       } catch(e) {}
 
-      // Mix both into one stream for recognition
+      // Mix system audio + mic
       const audioCtx = new AudioContext({ sampleRate: 44100 });
       const dest = audioCtx.createMediaStreamDestination();
 
-      if (sysStream.getAudioTracks().length > 0) {
+      if (hasSysAudio) {
         const sysSource = audioCtx.createMediaStreamSource(sysStream);
-        // Boost system audio so customer voice is heard clearly
         const sysGain = audioCtx.createGain();
-        sysGain.gain.value = 2.5;
+        sysGain.gain.value = 2.5; // boost customer voice
         sysSource.connect(sysGain);
         sysGain.connect(dest);
       }
 
       if (micStream) {
         const micSource = audioCtx.createMediaStreamSource(micStream);
-        const micGain = audioCtx.createGain();
-        micGain.gain.value = 1.0;
-        micSource.connect(micGain);
-        micGain.connect(dest);
+        micSource.connect(dest);
       }
 
-      // Set the mixed stream as default for speech recognition
       window._captureStream = dest.stream;
       window._audioCtx = audioCtx;
 
       startCaptureLoop();
-      activateCapture('✅ Live — capturing both sides');
 
-      // Handle stream ending (user stops share)
+      if (hasSysAudio) {
+        activateCapture('✅ Both sides captured — customer + agent');
+      } else {
+        activateCapture('🎤 Mic only — check "Share system audio" next time');
+      }
+
+      // Auto-stop if user ends screen share
       sysStream.getAudioTracks()[0]?.addEventListener('ended', () => {
-        if (isCapturing) {
-          toast('System audio ended — restarting mic only', 'err');
-          stopCapture();
-        }
+        if (isCapturing) stopCapture();
       });
 
     } catch(e) {
-      if (e.name === 'NotAllowedError') {
-        // User hit cancel — just use mic
+      if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
+        // Cancelled — fallback to mic only
         try {
           await navigator.mediaDevices.getUserMedia({ audio: true });
-          window._captureStream = null;
           startCaptureLoop();
-          activateCapture('🎤 Mic only — system audio not shared');
+          activateCapture('🎤 Mic only active');
         } catch(err) {
           toast('Mic access denied', 'err');
         }
       } else {
-        toast('Capture failed: ' + e.message, 'err');
+        // Last resort — mic only
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          startCaptureLoop();
+          activateCapture('🎤 Mic only active');
+        } catch(err) {
+          toast('Mic access denied', 'err');
+        }
       }
     }
   }
