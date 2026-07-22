@@ -58,7 +58,7 @@
     .sidebar { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; background: var(--s1); }
     .panel-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .panel-head-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-    .transcript-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .transcript-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
     .transcript-body::-webkit-scrollbar { width: 3px; }
     .transcript-body::-webkit-scrollbar-thumb { background: var(--border2); }
     .t-empty { color: var(--text3); font-size: 11px; text-align: center; padding: 24px 12px; line-height: 1.8; }
@@ -122,8 +122,10 @@
     .bottom-row { display: flex; gap: 6px; }
     .btn-booking { flex: 1; padding: 9px; background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25); border-radius: 7px; color: var(--green); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-booking:hover { background: rgba(0,230,118,0.18); }
-    .btn-trial { flex: 1; padding: 9px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.25); border-radius: 7px; color: var(--orange); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-trial:hover { background: rgba(255,152,0,0.18); }
+    .btn-otc { flex: 1; padding: 9px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.25); border-radius: 7px; color: var(--orange); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-otc:hover { background: rgba(255,152,0,0.18); }
+    .btn-trial { flex: 1; padding: 9px; background: rgba(145,85,255,0.1); border: 1px solid rgba(145,85,255,0.25); border-radius: 7px; color: #9155ff; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-trial:hover { background: rgba(145,85,255,0.18); }
     .btn-end { flex: 1; padding: 9px; background: rgba(255,61,87,0.08); border: 1px solid rgba(255,61,87,0.2); border-radius: 7px; color: var(--red); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-end:hover { background: rgba(255,61,87,0.15); }
 
@@ -197,7 +199,10 @@
   <div class="main">
     <!-- LEFT: TRANSCRIPT -->
     <div class="sidebar">
-      <div class="panel-head"><div class="panel-head-dot"></div>Live Transcript</div>
+      <div class="panel-head">
+        <div style="display:flex;align-items:center;gap:6px;"><div class="panel-head-dot"></div>Live Transcript</div>
+        <div id="transcriptCount" style="font-size:9px;color:var(--text3);">0 lines</div>
+      </div>
       <div class="transcript-body" id="transcriptFeed">
         <div class="t-empty">🎧<br><br>Start capturing to see live transcript.</div>
       </div>
@@ -241,7 +246,8 @@
           <button class="obj-btn sales" onclick="fire('Agent needs a discovery question to uncover why customer needs cleaning and what their pain point is')">🔍 Discovery Q</button>
           <button class="obj-btn sales" onclick="fire('Agent needs the elevator pitch to introduce Homeaglow — largest US cleaning company, 2.6M cleanings, 20K cleaners, background checked, deeply discounted rates')">🏢 HAG Intro</button>
           <button class="obj-btn sales" onclick="fire('Agent needs to pitch the ForeverClean membership: today only pay $19, first cleaning free, then $59/month, cancel anytime, discounted rate of $23/hr for future cleanings')">💎 FCF Pitch</button>
-          <button class="obj-btn sales" onclick="fire('Agent needs to offer the Trial Cleaning option as a fallback: one-time clean at discounted rate, 30 days to cancel, if no cancel within 30 days membership continues at $59/month')">🧪 Trial Clean</button>
+          <button class="obj-btn sales" onclick="fire('Customer rejected both FCF and OTC. Agent needs to offer OTC one-time cleaning at full price with no commitment as the second option')">🧹 OTC Offer</button>
+          <button class="obj-btn sales" onclick="fire('Customer rejected both FCF and OTC. As absolute last resort, offer Trial Cleaning: discounted one-time clean, 30 days to cancel, auto-enrolls FCF if no cancel')">🧪 Trial (Last)</button>
         </div>
         <div class="manual-row">
           <input class="manual-input" id="manualInput" placeholder="Type situation or what customer said... (Ctrl+Enter)" onkeydown="handleKey(event)">
@@ -249,6 +255,7 @@
         </div>
         <div class="bottom-row">
           <button class="btn-booking" onclick="confirmBooking('FCF')">✓ FCF Booked</button>
+          <button class="btn-otc" onclick="confirmBooking('OTC')">✓ OTC Booked</button>
           <button class="btn-trial" onclick="confirmBooking('Trial')">✓ Trial Booked</button>
           <button class="btn-end" onclick="endCall()">End Call</button>
         </div>
@@ -259,6 +266,28 @@
     <div class="right-sidebar">
       <div class="panel-head"><div class="panel-head-dot" style="background:var(--yellow)"></div>Quick Reference</div>
       <div class="rs-body">
+        <div class="rs-section-label">📊 Call Tracker</div>
+        <div id="callTracker" style="display:flex;flex-direction:column;gap:4px;">
+          <div class="rs-card" style="font-size:11px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="color:var(--text2)">Call Stage</span>
+              <span id="stageDisplay" style="color:var(--accent2);font-weight:600;font-size:10px;text-transform:uppercase;">Discovery</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="color:var(--text2)">AI Lines Given</span>
+              <span id="aiCountDisplay" style="color:var(--green);font-weight:600;">0</span>
+            </div>
+          </div>
+          <div id="objectionTracker" style="display:none;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin:4px 2px 4px;">Objections Raised</div>
+            <div id="objectionList" style="display:flex;flex-direction:column;gap:3px;"></div>
+          </div>
+          <div id="aiLineHistory" style="display:none;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin:4px 2px 4px;">Lines Given This Call</div>
+            <div id="aiLineList" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
         <div class="rs-section-label">MF Negotiation Order</div>
         <div class="rs-card">
           <strong>Start at $59 — Never offer lower first</strong>
@@ -272,29 +301,27 @@
           </div>
         </div>
 
-        <div class="rs-section-label">FCF Products</div>
+        <div class="rs-section-label">Offer Order — Always Follow This</div>
         <div class="rs-card">
-          <strong>ForeverClean (FCF) — PRIMARY CLOSE</strong>
-          • Today: $19 (1st month membership)<br>
-          • 2hr clean = FREE (just $19 today)<br>
-          • 3hr clean = FREE (just $19 today)<br>
-          • 4hr clean = $38 ($19 + $19 extra hr)<br>
-          • 6hr clean = $78 ($19 + $59 extra 3hrs)<br>
-          • Monthly: $59/mo after 1st month<br>
-          • Future cleanings: ~$23/hr<br>
-          • ETF: $35 × hours if cancel before 6 months
+          <strong style="color:var(--green)">1️⃣ ForeverClean (FCF) — ALWAYS FIRST</strong>
+          • Today: $19 (covers 1st month + first clean FREE)<br>
+          • 2-3hr: $19 today | 4hr: $38 | 6hr: $78<br>
+          • Monthly: $59/mo | Future cleans: ~$23/hr<br>
+          • ETF: $35 × hours if cancel before 6 months<br>
+          • MF ladder: $59 → $54 → $49 (only if pushed)
         </div>
         <div class="rs-card">
-          <strong>Trial Cleaning — FALLBACK OFFER</strong>
-          • Discounted one-time rate<br>
+          <strong style="color:var(--orange)">2️⃣ One-Time Clean (OTC) — IF FCF REJECTED</strong>
+          • Full one-time price, zero commitment<br>
+          • No membership, no ETF<br>
+          • Plant FCF seed: "if you love it, we can set you up"
+        </div>
+        <div class="rs-card">
+          <strong style="color:#9155ff">3️⃣ Trial Clean — ABSOLUTE LAST RESORT</strong>
+          • Discounted one-time rate upfront<br>
           • 30 days to cancel, no obligation<br>
-          • If no cancel: auto-enrolls $59/mo FCF<br>
-          • ETF applies if cancel before 6 paid months
-        </div>
-        <div class="rs-card">
-          <strong>One-Time Clean (OTC)</strong>
-          • Full price, no membership<br>
-          • Always try to convert to FCF first
+          • If no cancel in 30 days: auto-enrolls FCF $59/mo<br>
+          • ETF $99 if cancel before 6 paid months
         </div>
 
         <div class="rs-section-label">Key Objection Angles</div>
@@ -381,40 +408,209 @@
   }
 
   async function startCapture() {
+    // Show the audio source picker first
+    showAudioPicker();
+  }
+
+  function showAudioPicker() {
+    // Remove existing picker if any
+    const existing = document.getElementById('audioPicker');
+    if (existing) existing.remove();
+
+    const picker = document.createElement('div');
+    picker.id = 'audioPicker';
+    picker.style.cssText = `
+      position:fixed;inset:0;background:rgba(7,7,15,0.92);display:flex;
+      align-items:center;justify-content:center;z-index:9999;
+    `;
+    picker.innerHTML = `
+      <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:32px;width:420px;max-width:90vw;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">🎙️ Choose Audio Source</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:24px;line-height:1.6;">
+          To capture the customer's voice, select how your Aircall audio plays on this computer.
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button onclick="startWithTabAudio()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--accent);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🌐 <strong>Aircall is open in another tab</strong>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">Best option — captures customer + your voice from the Aircall tab</div>
+          </button>
+          <button onclick="startWithSystemAudio()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🖥️ <strong>Aircall is on a separate app / phone</strong>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">Shares screen audio — browser will ask you to pick a window</div>
+          </button>
+          <button onclick="startMicOnly()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🎤 <strong>Mic only (agent voice only)</strong>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">AI still helps — you type what the customer says</div>
+          </button>
+        </div>
+        <button onclick="document.getElementById('audioPicker').remove()" style="width:100%;margin-top:16px;padding:10px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;">Cancel</button>
+      </div>
+    `;
+    document.body.appendChild(picker);
+  }
+
+  // DUAL STREAM: separate mic (agent) and system audio (customer)
+  let agentRecognition = null;
+  let customerRecognition = null;
+
+  async function startWithTabAudio() {
+    document.getElementById('audioPicker').remove();
     try {
-      let stream;
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: false,
-          audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 }
-        });
-        const micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true }
-        });
-        const ctx = new AudioContext();
-        const dest = ctx.createMediaStreamDestination();
-        ctx.createMediaStreamSource(displayStream).connect(dest);
-        ctx.createMediaStreamSource(micStream).connect(dest);
-        stream = dest.stream;
-        toast('✅ Capturing mic + system audio', 'ok');
-      } catch(e) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        toast('🎙️ Mic only — check "Share system audio" for customer voice', 'ok');
-      }
-      startRecognition();
-      isCapturing = true;
-      document.getElementById('capBtn').className = 'btn-cap stop';
-      document.getElementById('capBtn').innerHTML = '⏹ Stop Capturing';
-      document.getElementById('sdot').classList.add('on');
-      document.getElementById('stext').textContent = 'Recording...';
-      document.getElementById('capHint').textContent = 'Live transcription active';
+      const tabStream = await navigator.mediaDevices.getDisplayMedia({
+        video: false,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true }
+      });
+      startDualRecognition(micStream, tabStream);
+      activateCapture('✅ Agent mic + Aircall tab — both sides labeled correctly');
     } catch(e) {
-      toast('Mic access denied. Please allow microphone.', 'err');
+      if (e.name === 'NotAllowedError') { startMicOnly(); return; }
+      toast('Tab capture failed — using mic only', 'err');
+      startMicOnly();
     }
   }
 
+  async function startWithSystemAudio() {
+    document.getElementById('audioPicker').remove();
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      displayStream.getVideoTracks().forEach(t => t.stop());
+      if (displayStream.getAudioTracks().length === 0) {
+        toast('No system audio found — try "Aircall in another tab" instead', 'err');
+        startMicOnly(); return;
+      }
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true }
+      });
+      startDualRecognition(micStream, displayStream);
+      activateCapture('✅ Agent mic + system audio — both sides labeled correctly');
+    } catch(e) {
+      toast('System audio failed — using mic only', 'err');
+      startMicOnly();
+    }
+  }
+
+  async function startMicOnly() {
+    const existing = document.getElementById('audioPicker');
+    if (existing) existing.remove();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      startSingleRecognition(stream, 'agent');
+      activateCapture('🎤 Mic only (Agent) — type customer lines for full AI context');
+    } catch(e) {
+      toast('Mic access denied. Please allow microphone in browser settings.', 'err');
+    }
+  }
+
+  function startDualRecognition(micStream, customerStream) {
+    // Agent recognition — from microphone
+    startSingleRecognition(micStream, 'agent');
+    // Customer recognition — from system/tab audio
+    startSingleRecognition(customerStream, 'customer');
+  }
+
+  function startSingleRecognition(stream, role) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
+
+    let restartTimeout = null;
+    let pendingFinal = '';
+    let sentenceTimer = null;
+
+    function commitSentence() {
+      if (pendingFinal.trim().length > 2) {
+        const sentence = pendingFinal.trim();
+        addLine(role, sentence);
+        convCtx.push({ role, content: sentence });
+        if (role === 'customer') scheduleAutoAI(sentence);
+        pendingFinal = '';
+        document.getElementById('interimText').textContent = '—';
+      }
+    }
+
+    function createRec() {
+      const r = new SR();
+      r.continuous = true;
+      r.interimResults = true;
+      r.lang = 'en-US';
+      r.maxAlternatives = 3;
+
+      r.onresult = e => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript.trim();
+          if (e.results[i].isFinal) {
+            if (t.length < 2) continue;
+            pendingFinal += (pendingFinal ? ' ' : '') + t;
+            clearTimeout(sentenceTimer);
+            sentenceTimer = setTimeout(commitSentence, 900);
+          } else { interim += t; }
+        }
+        if (interim.trim().length > 1) {
+          const icon = role === 'agent' ? '🎤' : '📞';
+          document.getElementById('interimText').textContent = icon + ' ' + interim.trim();
+        }
+      };
+
+      r.onend = () => {
+        commitSentence();
+        if (isCapturing) {
+          clearTimeout(restartTimeout);
+          restartTimeout = setTimeout(() => {
+            try {
+              const newR = createRec();
+              if (role === 'agent') agentRecognition = newR;
+              else customerRecognition = newR;
+              newR.start();
+            } catch(err) {}
+          }, 50);
+        }
+      };
+
+      r.onerror = e => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        console.warn('SR (' + role + '):', e.error);
+        if (isCapturing) {
+          clearTimeout(restartTimeout);
+          restartTimeout = setTimeout(() => {
+            try {
+              const newR = createRec();
+              if (role === 'agent') agentRecognition = newR;
+              else customerRecognition = newR;
+              newR.start();
+            } catch(err) {}
+          }, 300);
+        }
+      };
+      return r;
+    }
+
+    const r = createRec();
+    if (role === 'agent') agentRecognition = r;
+    else customerRecognition = r;
+    r.start();
+  }
+
+  function activateCapture(message) {
+    isCapturing = true;
+    document.getElementById('capBtn').className = 'btn-cap stop';
+    document.getElementById('capBtn').innerHTML = '⏹ Stop Capturing';
+    document.getElementById('sdot').classList.add('on');
+    document.getElementById('stext').textContent = 'Recording...';
+    document.getElementById('capHint').textContent = message;
+    toast(message, 'ok');
+  }
+
   function stopCapture() {
-    if (recognition) { try { recognition.stop(); } catch(e){} }
+    if (agentRecognition) { try { agentRecognition.stop(); } catch(e){} agentRecognition = null; }
+    if (customerRecognition) { try { customerRecognition.stop(); } catch(e){} customerRecognition = null; }
+    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
     isCapturing = false;
     document.getElementById('capBtn').className = 'btn-cap start';
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
@@ -424,40 +620,24 @@
     document.getElementById('interimText').textContent = '—';
   }
 
-  function startRecognition() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
-    recognition = new SR();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognition.onresult = e => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          if (t.trim().length < 3) return; // ignore silence/noise
-          addLine('customer', t);
-          convCtx.push({ role: 'customer', content: t });
-          scheduleAutoAI(t);
-          document.getElementById('interimText').textContent = '—';
-        } else { interim += t; }
-      }
-      if (interim.length > 2) document.getElementById('interimText').textContent = interim;
-    };
-    recognition.onend = () => { if (isCapturing) { try { recognition.start(); } catch(e){} } };
-    recognition.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('SR:', e.error); };
-    recognition.start();
-  }
+
 
   function addLine(role, text) {
     const feed = document.getElementById('transcriptFeed');
     if (feed.querySelector('.t-empty')) feed.innerHTML = '';
     const d = document.createElement('div');
     d.className = 't-item ' + role;
-    d.innerHTML = '<div class="t-label">' + (role === 'agent' ? '🎤 Agent' : '📞 Customer') + '</div>' + text;
+    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    d.innerHTML = '<div class="t-label" style="display:flex;justify-content:space-between;">' +
+      '<span>' + (role === 'agent' ? '🎤 Agent' : '📞 Customer') + '</span>' +
+      '<span style="font-size:9px;opacity:0.4;font-weight:400;">' + time + '</span>' +
+      '</div>' + text;
     feed.appendChild(d);
     feed.scrollTop = feed.scrollHeight;
+    // Update transcript line count
+    const count = feed.querySelectorAll('.t-item').length;
+    const countEl = document.getElementById('transcriptCount');
+    if (countEl) countEl.textContent = count + ' line' + (count !== 1 ? 's' : '');
   }
 
   function scheduleAutoAI(text) {
@@ -477,6 +657,7 @@
       callStage = 'etf_objection';
       objectionLog['etf'] = (objectionLog['etf'] || 0) + 1;
     }
+    updateTracker();
     autoTimer = setTimeout(() => {
       document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
       generateAI();
@@ -503,7 +684,21 @@
     btn.disabled = true;
     btn.textContent = '...';
 
-    document.getElementById('tpBody').innerHTML = `<div class="tp-loading"><div class="tp-loading-icon">⚡</div><div class="tp-loading-bar"><div class="tp-loading-fill"></div></div><div class="tp-loading-text">Getting your line...</div></div>`;
+    // Show instant "thinking" state with timer so agent knows AI is working
+    const startTime = Date.now();
+    document.getElementById('tpBody').innerHTML = `
+      <div class="tp-loading">
+        <div class="tp-loading-icon">⚡</div>
+        <div class="tp-loading-bar"><div class="tp-loading-fill"></div></div>
+        <div class="tp-loading-text" id="loadingText">Getting your line...</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="loadingTimer">0s</div>
+      </div>`;
+    // Update timer every second so agent knows it's working
+    const timerInterval = setInterval(() => {
+      const el = document.getElementById('loadingTimer');
+      if (el) el.textContent = Math.round((Date.now() - startTime) / 1000) + 's';
+      else clearInterval(timerInterval);
+    }, 1000);
 
     // Send FULL conversation — everything said this call
     const fullTranscript = convCtx
@@ -558,11 +753,75 @@ RULES:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API Error');
-      aiHistory.push(data.text); // Remember every line given
-      showResponse(data.text);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'API Error');
+      }
+
+      // STREAMING — words appear instantly as Claude generates them
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let streamStarted = false;
+
+      clearInterval(timerInterval);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.full !== undefined) {
+              fullText = parsed.full;
+              if (!streamStarted) {
+                streamStarted = true;
+                // Show the teleprompter box immediately on first word
+                document.getElementById('tpBody').innerHTML = `
+                  <div class="tp-response">
+                    <div class="tp-badge">⚡ Say This Now</div>
+                    <div class="tp-text" id="tpText" style="min-height:80px;"></div>
+                    <div class="tp-actions" style="opacity:0.4;pointer-events:none;">
+                      <button class="tp-btn copy">📋 Copy</button>
+                      <button class="tp-btn gotit">✓ Used It</button>
+                      <button class="tp-btn regen">🔄 New</button>
+                    </div>
+                  </div>`;
+              }
+              const el = document.getElementById('tpText');
+              if (el) el.textContent = fullText;
+            }
+          } catch(e) { /* skip malformed */ }
+        }
+      }
+
+      // Done streaming — enable buttons
+      const actions = document.querySelector('.tp-actions');
+      if (actions) {
+        actions.style.opacity = '1';
+        actions.style.pointerEvents = 'auto';
+        actions.innerHTML = `
+          <button class="tp-btn copy" onclick="copyLine()">📋 Copy</button>
+          <button class="tp-btn gotit" onclick="usedLine()">✓ Used It</button>
+          <button class="tp-btn regen" onclick="generateAI()">🔄 New Line</button>`;
+      }
+      const tpText = document.getElementById('tpText');
+      if (tpText) tpText.classList.add('text-pop');
+
+      if (fullText) {
+        aiHistory.push(fullText);
+        updateTracker();
+      }
+
     } catch(e) {
+      clearInterval(timerInterval);
       document.getElementById('tpBody').innerHTML = `<div class="tp-waiting"><div class="tp-waiting-icon">❌</div><div class="tp-waiting-text" style="color:var(--red)">${e.message}</div></div>`;
     } finally {
       btn.disabled = false;
@@ -598,9 +857,58 @@ RULES:
       // Advance call stage after pitch is delivered
       if (callStage === 'discovery') callStage = 'pitch';
       else if (callStage === 'pitch') callStage = 'close_attempt';
+      updateTracker();
     }
     document.getElementById('manualInput').value = '';
     setWaiting();
+  }
+
+  // UPDATE CALL TRACKER in real time
+  function updateTracker() {
+    // Stage display
+    const stageNames = {
+      'discovery': 'Discovery',
+      'pitch': 'Pitching FCF',
+      'price_objection': '⚠️ Price Obj.',
+      'stall_objection': '⚠️ Stall/Time',
+      'membership_objection': '⚠️ Membership',
+      'etf_objection': '⚠️ Cancel Fee',
+      'trial_offer': 'Trial Offer',
+      'close_attempt': 'Closing',
+      'negotiating': 'Negotiating'
+    };
+    const stageEl = document.getElementById('stageDisplay');
+    if (stageEl) stageEl.textContent = stageNames[callStage] || callStage;
+
+    // AI line count
+    const countEl = document.getElementById('aiCountDisplay');
+    if (countEl) countEl.textContent = aiHistory.length;
+
+    // Objection tracker
+    const objEntries = Object.entries(objectionLog);
+    const objTracker = document.getElementById('objectionTracker');
+    const objList = document.getElementById('objectionList');
+    if (objEntries.length > 0 && objTracker && objList) {
+      objTracker.style.display = 'block';
+      const objEmojis = { price: '💸', stall: '🤔', membership: '🚫', etf: '📋', diy: '🧹', spouse: '👫', scam: '⚠️', review: '⭐', card: '💳' };
+      objList.innerHTML = objEntries.map(([k, v]) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;">
+          <span style="font-size:11px;color:var(--text2)">${objEmojis[k] || '❗'} ${k} objection</span>
+          <span style="font-size:11px;font-weight:700;color:${v >= 3 ? 'var(--red)' : v >= 2 ? 'var(--yellow)' : 'var(--text2)'}">${v}x</span>
+        </div>`).join('');
+    }
+
+    // AI line history
+    const histTracker = document.getElementById('aiLineHistory');
+    const histList = document.getElementById('aiLineList');
+    if (aiHistory.length > 0 && histTracker && histList) {
+      histTracker.style.display = 'block';
+      histList.innerHTML = aiHistory.slice(-6).reverse().map((line, i) => `
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:10px;color:var(--text2);line-height:1.4;">
+          <span style="color:var(--accent2);font-weight:700;font-size:9px;">LINE ${aiHistory.length - i}</span><br>
+          ${line.substring(0, 80)}${line.length > 80 ? '...' : ''}
+        </div>`).join('');
+    }
   }
 
   function confirmBooking(type) {
