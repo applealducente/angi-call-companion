@@ -426,23 +426,99 @@
   }
 
   async function startCapture() {
+    showSourcePicker();
+  }
+
+  function showSourcePicker() {
+    const existing = document.getElementById('srcPicker');
+    if (existing) existing.remove();
+    const d = document.createElement('div');
+    d.id = 'srcPicker';
+    d.style.cssText = 'position:fixed;inset:0;background:rgba(7,7,15,0.95);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    d.innerHTML = `
+      <div style="background:#0d0d1a;border:1px solid #2a2a4a;border-radius:16px;padding:36px;width:440px;max-width:95vw;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">📞 How is Aircall open?</div>
+        <div style="font-size:12px;color:#8888aa;margin-bottom:24px;line-height:1.6;">Pick the right option so we capture the customer's voice — not yours.</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button onclick="captureAircallTab()" style="padding:14px 16px;background:#0f0f20;border:1.5px solid #5b4fff;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🌐 <strong>Aircall is open in a Chrome tab</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Best — captures customer voice from that tab only, no mic</div>
+          </button>
+          <button onclick="captureMicSpeaker()" style="padding:14px 16px;background:#0f0f20;border:1px solid #28284a;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🔊 <strong>Aircall desktop app — phone on speaker</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Mic picks up customer from speaker — turn Aircall volume up</div>
+          </button>
+          <button onclick="captureMicOnly()" style="padding:14px 16px;background:#0f0f20;border:1px solid #28284a;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
+            🎤 <strong>Manual — I'll tap the objection buttons</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">No audio capture — use quick buttons or type what customer says</div>
+          </button>
+        </div>
+        <button onclick="document.getElementById('srcPicker').remove()" style="width:100%;margin-top:14px;padding:10px;background:transparent;border:1px solid #28284a;border-radius:8px;color:#8888aa;font-size:12px;cursor:pointer;">Cancel</button>
+      </div>`;
+    document.body.appendChild(d);
+  }
+
+  async function captureAircallTab() {
+    document.getElementById('srcPicker').remove();
     try {
-      await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          googEchoCancellation: false,
-          googNoiseSuppression: false,
-          googAutoGainControl: false,
-          googHighpassFilter: false
-        }
+      // Ask agent to select the Aircall tab — captures tab audio (customer voice) only
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: 1, height: 1 },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      stream.getVideoTracks().forEach(t => t.stop());
+      if (stream.getAudioTracks().length === 0) {
+        toast('No audio — make sure to select the Aircall tab (look for 🔊 icon)', 'err');
+        return;
+      }
+      // Boost tab audio so speech recognition catches it
+      const audioCtx = new AudioContext();
+      const src = audioCtx.createMediaStreamSource(stream);
+      const gain = audioCtx.createGain();
+      gain.gain.value = 3.0;
+      src.connect(gain);
+      const dest = audioCtx.createMediaStreamDestination();
+      gain.connect(dest);
+      window._audioCtx = audioCtx;
+      stream.getAudioTracks()[0].addEventListener('ended', () => {
+        if (isCapturing) { toast('Tab audio ended — click Start Capturing again', 'err'); stopCapture(); }
       });
       startCaptureLoop();
-      activateCapture('📞 Live — listening for customer');
+      activateCapture('📞 Aircall tab audio — customer voice only');
     } catch(e) {
-      toast('Mic access denied — allow microphone in browser settings', 'err');
+      if (e.name === 'NotAllowedError') {
+        toast('Cancelled — try again and select the Aircall tab', 'err');
+      } else {
+        toast('Tab capture failed — trying speaker mode', 'err');
+        captureMicSpeaker();
+      }
     }
+  }
+
+  async function captureMicSpeaker() {
+    const p = document.getElementById('srcPicker');
+    if (p) p.remove();
+    try {
+      await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }
+      });
+      startCaptureLoop();
+      activateCapture('🔊 Speaker mode — turn up Aircall volume for best capture');
+    } catch(e) { toast('Mic access denied', 'err'); }
+  }
+
+  function captureMicOnly() {
+    const p = document.getElementById('srcPicker');
+    if (p) p.remove();
+    isCapturing = true;
+    listeningForCustomer = true;
+    document.getElementById('capBtn').className = 'btn-cap stop';
+    document.getElementById('capBtn').innerHTML = '⏹ Stop';
+    document.getElementById('sdot').classList.add('on');
+    document.getElementById('stext').textContent = 'Manual';
+    document.getElementById('capHint').textContent = 'Tap objection buttons or type what customer says';
+    updateListeningState();
+    toast('Manual mode active — use the objection buttons below', 'ok');
   }
 
   // Check if captured text is the agent reading the AI script
