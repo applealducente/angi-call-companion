@@ -438,7 +438,7 @@
           googHighpassFilter: false
         }
       });
-      startCaptureLoop(stream);
+      startCaptureLoop(null);
       activateCapture('🎙️ Capturing — both sides');
     } catch(e) {
       console.error('Capture error:', e.name, e.message);
