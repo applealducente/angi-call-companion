@@ -8,20 +8,11 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #07070f;
-      --s1: #0d0d1a;
-      --s2: #121220;
-      --s3: #1a1a2e;
-      --border: #1e1e35;
-      --border2: #28284a;
-      --accent: #5b4fff;
-      --accent2: #7c6fff;
-      --green: #00e676;
-      --red: #ff3d57;
-      --yellow: #ffd600;
-      --text: #eeeef8;
-      --text2: #8888aa;
-      --text3: #44445a;
+      --bg: #07070f; --s1: #0d0d1a; --s2: #121220; --s3: #1a1a2e;
+      --border: #1e1e35; --border2: #28284a;
+      --accent: #5b4fff; --accent2: #7c6fff;
+      --green: #00e676; --red: #ff3d57; --yellow: #ffd600; --orange: #ff9800;
+      --text: #eeeef8; --text2: #8888aa; --text3: #44445a;
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
 
@@ -31,7 +22,7 @@
     .login-box { background: var(--s1); border: 1px solid var(--border2); border-radius: 16px; padding: 40px; width: 400px; }
     .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
     .login-brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), #a855f7); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-    .login-brand-name { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .login-brand-name { font-size: 16px; font-weight: 700; }
     .login-brand-sub { font-size: 11px; color: var(--text2); }
     .login-h { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
     .login-sub { font-size: 13px; color: var(--text2); margin-bottom: 28px; }
@@ -39,19 +30,17 @@
     .fg label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
     .fg input, .fg select { width: 100%; padding: 11px 14px; background: var(--s2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; }
     .fg input:focus, .fg select:focus { border-color: var(--accent); }
-    .btn-start { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 20px; letter-spacing: -0.2px; transition: opacity 0.2s; }
+    .btn-start { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 20px; transition: opacity 0.2s; }
     .btn-start:hover { opacity: 0.9; }
 
-    /* LAYOUT */
+    /* APP */
     .app { display: grid; grid-template-rows: 52px 1fr; height: 100vh; }
-
-    /* TOPBAR */
     .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--s1); border-bottom: 1px solid var(--border); }
     .tb-left { display: flex; align-items: center; gap: 16px; }
     .tb-logo { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
     .tb-logo-icon { width: 24px; height: 24px; background: linear-gradient(135deg, var(--accent), #a855f7); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
     .tb-sep { width: 1px; height: 20px; background: var(--border2); }
-    .tb-agent { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+    .tb-agent { font-size: 12px; color: var(--text2); }
     .tb-agent strong { color: var(--text); font-weight: 600; }
     .tb-right { display: flex; align-items: center; gap: 10px; }
     .tb-call { font-size: 11px; color: var(--text2); background: var(--s2); border: 1px solid var(--border2); padding: 4px 10px; border-radius: 12px; }
@@ -62,102 +51,103 @@
     .btn-so { padding: 5px 12px; background: transparent; border: 1px solid var(--border2); border-radius: 6px; color: var(--text2); font-size: 11px; cursor: pointer; transition: all 0.2s; }
     .btn-so:hover { border-color: var(--red); color: var(--red); }
 
-    /* MAIN */
-    .main { display: grid; grid-template-columns: 260px 1fr 340px; height: calc(100vh - 52px); overflow: hidden; }
+    /* MAIN GRID */
+    .main { display: grid; grid-template-columns: 240px 1fr 300px; height: calc(100vh - 52px); overflow: hidden; }
 
-    /* SIDEBAR LEFT — transcript */
+    /* LEFT SIDEBAR - TRANSCRIPT */
     .sidebar { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; background: var(--s1); }
-    .sidebar-head { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .sidebar-head-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-    .transcript-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .panel-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .panel-head-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .transcript-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
     .transcript-body::-webkit-scrollbar { width: 3px; }
     .transcript-body::-webkit-scrollbar-thumb { background: var(--border2); }
-    .t-empty { color: var(--text3); font-size: 12px; text-align: center; padding: 32px 16px; line-height: 1.8; }
-    .t-interim { font-size: 11px; color: var(--text3); font-style: italic; padding: 8px 10px; background: var(--s2); border-radius: 6px; border: 1px dashed var(--border2); margin: 0 4px; min-height: 30px; flex-shrink: 0; }
-    .t-item { padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5; border-left: 2px solid; animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .t-empty { color: var(--text3); font-size: 11px; text-align: center; padding: 24px 12px; line-height: 1.8; }
+    .t-item { padding: 7px 10px; border-radius: 7px; font-size: 11px; line-height: 1.5; border-left: 2px solid; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
     .t-item.customer { background: rgba(255,61,87,0.07); border-left-color: var(--red); }
     .t-item.agent { background: rgba(91,79,255,0.07); border-left-color: var(--accent); }
     .t-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.5; margin-bottom: 2px; }
-    .capture-footer { padding: 12px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
-    .btn-cap { width: 100%; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+    .t-interim { font-size: 11px; color: var(--text3); font-style: italic; padding: 6px 10px; background: var(--s2); border-radius: 6px; border: 1px dashed var(--border2); margin: 4px 10px; min-height: 28px; flex-shrink: 0; }
+    .capture-footer { padding: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .btn-cap { width: 100%; padding: 9px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
     .btn-cap.start { background: linear-gradient(135deg, var(--accent), #7c3aed); color: white; }
     .btn-cap.stop { background: rgba(255,61,87,0.12); color: var(--red); border: 1px solid rgba(255,61,87,0.25); }
     .cap-hint { font-size: 10px; color: var(--text3); text-align: center; }
 
-    /* CENTER — TELEPROMPTER */
+    /* CENTER - TELEPROMPTER */
     .teleprompter { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-    .tp-head { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .tp-head { padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
     .tp-head-left { display: flex; align-items: center; gap: 6px; }
     .tp-head-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
-    .tp-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; overflow-y: auto; }
+    .tp-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 32px; overflow-y: auto; }
 
-    /* THE TELEPROMPTER TEXT */
+    /* TELEPROMPTER STATES */
     .tp-waiting { text-align: center; color: var(--text3); }
-    .tp-waiting-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
-    .tp-waiting-text { font-size: 14px; line-height: 1.8; }
-
-    .tp-loading { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-    .tp-loading-icon { font-size: 36px; animation: pulse 0.8s ease-in-out infinite; }
+    .tp-waiting-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+    .tp-waiting-text { font-size: 13px; line-height: 1.8; }
+    .tp-loading { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .tp-loading-icon { font-size: 32px; animation: pulse 0.8s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
-    .tp-loading-bar { width: 240px; height: 2px; background: var(--border2); border-radius: 1px; overflow: hidden; }
+    .tp-loading-bar { width: 200px; height: 2px; background: var(--border2); border-radius: 1px; overflow: hidden; }
     .tp-loading-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a855f7); animation: load 1s ease-in-out infinite; }
     @keyframes load { 0%{width:0%;margin-left:0%} 50%{width:60%;margin-left:20%} 100%{width:0%;margin-left:100%} }
     .tp-loading-text { font-size: 12px; color: var(--text2); }
-
-    .tp-response { width: 100%; max-width: 700px; text-align: center; }
-    .tp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 5px 12px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), #7c3aed); color: white; margin-bottom: 24px; }
-    .tp-text { font-size: 28px; font-weight: 700; line-height: 1.5; color: var(--text); letter-spacing: -0.5px; margin-bottom: 32px; text-shadow: 0 0 60px rgba(91,79,255,0.3); }
-    .tp-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    .tp-btn { padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+    .tp-response { width: 100%; max-width: 680px; text-align: center; }
+    .tp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 12px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), #7c3aed); color: white; margin-bottom: 20px; }
+    .tp-text { font-size: 24px; font-weight: 700; line-height: 1.55; color: var(--text); letter-spacing: -0.3px; margin-bottom: 28px; text-shadow: 0 0 60px rgba(91,79,255,0.2); }
+    .tp-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .tp-btn { padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
     .tp-btn.copy { background: rgba(91,79,255,0.15); color: var(--accent2); border: 1px solid rgba(91,79,255,0.3); }
     .tp-btn.copy:hover { background: rgba(91,79,255,0.25); }
     .tp-btn.gotit { background: rgba(0,230,118,0.12); color: var(--green); border: 1px solid rgba(0,230,118,0.25); }
     .tp-btn.gotit:hover { background: rgba(0,230,118,0.22); }
     .tp-btn.regen { background: var(--s2); color: var(--text2); border: 1px solid var(--border2); }
-    .tp-btn.regen:hover { color: var(--text); border-color: var(--text2); }
+    .tp-btn.regen:hover { color: var(--text); }
 
     /* BOTTOM CONTROLS */
-    .tp-controls { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-    .objection-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 4px; }
-    .objection-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .obj-btn { padding: 9px 6px; background: var(--s2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text2); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; }
+    .tp-controls { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+    .obj-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); }
+    .obj-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .obj-btn { padding: 8px 4px; background: var(--s2); border: 1px solid var(--border2); border-radius: 7px; color: var(--text2); font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.3; }
     .obj-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(91,79,255,0.08); }
-    .manual-row { display: flex; gap: 8px; }
-    .manual-input { flex: 1; padding: 10px 14px; background: var(--s2); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    .obj-btn.sales { border-color: rgba(0,230,118,0.2); }
+    .obj-btn.sales:hover { border-color: var(--green); color: var(--green); background: rgba(0,230,118,0.05); }
+    .manual-row { display: flex; gap: 6px; }
+    .manual-input { flex: 1; padding: 9px 12px; background: var(--s2); border: 1px solid var(--border2); border-radius: 7px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; }
     .manual-input:focus { border-color: var(--accent); }
     .manual-input::placeholder { color: var(--text3); }
-    .btn-ask { padding: 10px 18px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 8px; color: white; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .btn-ask { padding: 9px 16px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 7px; color: white; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
     .btn-ask:hover { opacity: 0.9; }
     .btn-ask:disabled { opacity: 0.4; cursor: not-allowed; }
-    .bottom-row { display: flex; gap: 8px; }
-    .btn-booking { flex: 1; padding: 10px; background: rgba(255,214,0,0.1); border: 1px solid rgba(255,214,0,0.25); border-radius: 8px; color: var(--yellow); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-booking:hover { background: rgba(255,214,0,0.18); }
-    .btn-end { flex: 1; padding: 10px; background: rgba(255,61,87,0.08); border: 1px solid rgba(255,61,87,0.2); border-radius: 8px; color: var(--red); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .bottom-row { display: flex; gap: 6px; }
+    .btn-booking { flex: 1; padding: 9px; background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25); border-radius: 7px; color: var(--green); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-booking:hover { background: rgba(0,230,118,0.18); }
+    .btn-trial { flex: 1; padding: 9px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.25); border-radius: 7px; color: var(--orange); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-trial:hover { background: rgba(255,152,0,0.18); }
+    .btn-end { flex: 1; padding: 9px; background: rgba(255,61,87,0.08); border: 1px solid rgba(255,61,87,0.2); border-radius: 7px; color: var(--red); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-end:hover { background: rgba(255,61,87,0.15); }
 
-    /* RIGHT SIDEBAR — context */
+    /* RIGHT SIDEBAR - REFERENCE */
     .right-sidebar { display: flex; flex-direction: column; border-left: 1px solid var(--border); overflow: hidden; background: var(--s1); }
-    .rs-head { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .rs-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .rs-section { margin-bottom: 4px; }
-    .rs-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 8px; }
-    .rs-card { background: var(--s2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 12px; color: var(--text2); line-height: 1.6; }
-    .rs-card strong { color: var(--text); font-weight: 600; display: block; margin-bottom: 4px; }
-    .price-ladder { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-    .price-step { padding: 4px 10px; background: var(--s3); border: 1px solid var(--border2); border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--text); }
+    .rs-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .rs-body::-webkit-scrollbar { width: 3px; }
+    .rs-body::-webkit-scrollbar-thumb { background: var(--border2); }
+    .rs-section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; padding: 0 2px; }
+    .rs-card { background: var(--s2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--text2); line-height: 1.6; margin-bottom: 4px; }
+    .rs-card strong { color: var(--text); font-weight: 600; display: block; margin-bottom: 3px; }
+    .price-ladder { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    .price-step { padding: 3px 8px; background: var(--s3); border: 1px solid var(--border2); border-radius: 12px; font-size: 11px; font-weight: 700; color: var(--text); }
     .price-arrow { color: var(--text3); font-size: 10px; }
-    .strategy-item { padding: 8px 10px; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--text2); line-height: 1.5; margin-bottom: 6px; }
-    .strategy-item strong { color: var(--accent2); display: block; margin-bottom: 2px; }
+    .strategy-item { padding: 7px 10px; background: var(--s2); border: 1px solid var(--border); border-radius: 6px; font-size: 10px; color: var(--text2); line-height: 1.5; margin-bottom: 4px; }
+    .strategy-item strong { color: var(--accent2); display: block; margin-bottom: 2px; font-size: 10px; }
 
     /* TOAST */
-    .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 18px; background: var(--s2); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; z-index: 9999; transform: translateY(60px); opacity: 0; transition: all 0.25s; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    .toast { position: fixed; bottom: 16px; right: 16px; padding: 9px 16px; background: var(--s2); border: 1px solid var(--border2); border-radius: 8px; font-size: 12px; z-index: 9999; transform: translateY(60px); opacity: 0; transition: all 0.25s; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast.ok { border-color: var(--green); color: var(--green); }
     .toast.err { border-color: var(--red); color: var(--red); }
-
     @keyframes textPop { 0%{opacity:0;transform:scale(0.96)} 100%{opacity:1;transform:scale(1)} }
-    .text-pop { animation: textPop 0.3s ease; }
+    .text-pop { animation: textPop 0.25s ease; }
   </style>
 </head>
 <body>
@@ -169,17 +159,17 @@
       <div class="login-brand-icon">⚡</div>
       <div>
         <div class="login-brand-name">Call Companion</div>
-        <div class="login-brand-sub">AI-Powered · Angi / Homeaglow</div>
+        <div class="login-brand-sub">Homeaglow · Angi Campaign · AI-Powered</div>
       </div>
     </div>
     <div class="login-h">Ready to close?</div>
-    <div class="login-sub">Sign in to activate your live AI teleprompter.</div>
+    <div class="login-sub">Sign in and get your AI co-pilot for every call.</div>
     <form id="loginForm">
       <div class="fg"><label>Your Name</label><input id="agentName" type="text" placeholder="e.g. Apple" required autocomplete="off"></div>
       <div class="fg"><label>Email</label><input id="agentEmail" type="email" placeholder="you@homeaglow.com" required autocomplete="off"></div>
       <div class="fg"><label>Team</label>
         <select id="agentTeam">
-          <option value="angi">Angi / Homeaglow</option>
+          <option value="fcf">FCF Sales</option>
           <option value="retention">Retention</option>
           <option value="upsell">Upsell</option>
         </select>
@@ -191,7 +181,6 @@
 
 <!-- APP -->
 <div class="app">
-  <!-- TOPBAR -->
   <div class="topbar">
     <div class="tb-left">
       <div class="tb-logo"><div class="tb-logo-icon">⚡</div>Call Companion</div>
@@ -205,99 +194,135 @@
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
-
     <!-- LEFT: TRANSCRIPT -->
     <div class="sidebar">
-      <div class="sidebar-head"><div class="sidebar-head-dot"></div>Live Transcript</div>
+      <div class="panel-head"><div class="panel-head-dot"></div>Live Transcript</div>
       <div class="transcript-body" id="transcriptFeed">
-        <div class="t-empty">🎧<br><br>Start capturing to see the live transcript.</div>
+        <div class="t-empty">🎧<br><br>Start capturing to see live transcript.</div>
       </div>
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">🎙️ Start Capturing</button>
-        <div class="cap-hint" id="capHint">Captures mic + speaker/headset</div>
+        <div class="cap-hint" id="capHint">Mic + speaker/headset audio</div>
       </div>
     </div>
 
     <!-- CENTER: TELEPROMPTER -->
     <div class="teleprompter">
       <div class="tp-head">
-        <div class="tp-head-left"><div class="tp-head-dot"></div>AI Teleprompter</div>
-        <div style="font-size:10px;color:var(--text3)">Ctrl+Enter to fire</div>
+        <div class="tp-head-left"><div class="tp-head-dot"></div>AI Teleprompter — Read What Appears</div>
+        <div style="font-size:10px;color:var(--text3)">Ctrl+Enter</div>
       </div>
-
       <div class="tp-body" id="tpBody">
         <div class="tp-waiting">
           <div class="tp-waiting-icon">🤖</div>
-          <div class="tp-waiting-text">Your next line will appear here.<br>Use the quick actions below or speak — AI fires automatically.</div>
+          <div class="tp-waiting-text">Your exact next line will appear here.<br>Tap an objection below or type the situation.</div>
         </div>
       </div>
-
       <div class="tp-controls">
-        <div class="objection-label">Quick Objections</div>
-        <div class="objection-grid">
-          <button class="obj-btn" onclick="fireObjection('too expensive')">💸 Too Expensive</button>
-          <button class="obj-btn" onclick="fireObjection('need to think about it')">🤔 Need Time</button>
-          <button class="obj-btn" onclick="fireObjection('i can clean myself')">🧹 DIY</button>
-          <button class="obj-btn" onclick="fireObjection('cancel membership')">❌ Cancel</button>
-          <button class="obj-btn" onclick="fireObjection('what is the cancellation fee')">📋 Cancel Fee</button>
-          <button class="obj-btn" onclick="fireObjection('send me information by email')">📧 Send Email</button>
-          <button class="obj-btn" onclick="fireObjection('upgrade to foreverclean')">⬆️ Upgrade FCF</button>
-          <button class="obj-btn" onclick="fireObjection('whats next after booking')">➡️ What Next</button>
+        <div class="obj-section-label">⚡ Common Objections</div>
+        <div class="obj-grid">
+          <button class="obj-btn" onclick="fire('Customer says the price is too expensive or too much money')">💸 Too Expensive</button>
+          <button class="obj-btn" onclick="fire('Customer needs time to think about it or wants to call back')">🤔 Need Time</button>
+          <button class="obj-btn" onclick="fire('Customer says they can clean themselves or do it DIY')">🧹 DIY / Self Clean</button>
+          <button class="obj-btn" onclick="fire('Customer does not want a membership or recurring commitment')">🚫 No Membership</button>
+          <button class="obj-btn" onclick="fire('Customer asking about the early cancellation fee or ETF')">📋 Cancel Fee</button>
+          <button class="obj-btn" onclick="fire('Customer wants to consult spouse or partner first before deciding')">👫 Ask Spouse</button>
+          <button class="obj-btn" onclick="fire('Customer already found another cleaner or has someone already')">🏠 Has Cleaner</button>
+          <button class="obj-btn" onclick="fire('Customer says they will not use the service often enough to justify membership')">📅 Won\'t Use Often</button>
+          <button class="obj-btn" onclick="fire('Customer does not want to give credit card information over the phone')">💳 No Card Info</button>
+          <button class="obj-btn" onclick="fire('Customer thinks this is a scam or does not trust the company')">⚠️ Thinks Scam</button>
+          <button class="obj-btn" onclick="fire('Customer mentioned a negative review they saw online')">⭐ Neg Review</button>
+          <button class="obj-btn" onclick="fire('Customer says they are not ready or not interested right now')">🚪 Not Ready</button>
+        </div>
+        <div class="obj-section-label" style="margin-top:4px">🟢 Sales Stages</div>
+        <div class="obj-grid">
+          <button class="obj-btn sales" onclick="fire('Agent needs a discovery question to uncover why customer needs cleaning and what their pain point is')">🔍 Discovery Q</button>
+          <button class="obj-btn sales" onclick="fire('Agent needs the elevator pitch to introduce Homeaglow — largest US cleaning company, 2.6M cleanings, 20K cleaners, background checked, deeply discounted rates')">🏢 HAG Intro</button>
+          <button class="obj-btn sales" onclick="fire('Agent needs to pitch the ForeverClean membership: today only pay $19, first cleaning free, then $59/month, cancel anytime, discounted rate of $23/hr for future cleanings')">💎 FCF Pitch</button>
+          <button class="obj-btn sales" onclick="fire('Agent needs to offer the Trial Cleaning option as a fallback: one-time clean at discounted rate, 30 days to cancel, if no cancel within 30 days membership continues at $59/month')">🧪 Trial Clean</button>
         </div>
         <div class="manual-row">
-          <input class="manual-input" id="manualInput" placeholder="Type the situation... (Ctrl+Enter to send)" onkeydown="handleKey(event)">
-          <button class="btn-ask" id="askBtn" onclick="generateAI()">⚡ Ask AI</button>
+          <input class="manual-input" id="manualInput" placeholder="Type situation or what customer said... (Ctrl+Enter)" onkeydown="handleKey(event)">
+          <button class="btn-ask" id="askBtn" onclick="generateAI()">⚡ AI</button>
         </div>
         <div class="bottom-row">
-          <button class="btn-booking" onclick="confirmBooking()">✓ Booking Confirmed</button>
+          <button class="btn-booking" onclick="confirmBooking('FCF')">✓ FCF Booked</button>
+          <button class="btn-trial" onclick="confirmBooking('Trial')">✓ Trial Booked</button>
           <button class="btn-end" onclick="endCall()">End Call</button>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT: STRATEGIES -->
+    <!-- RIGHT: QUICK REFERENCE -->
     <div class="right-sidebar">
-      <div class="rs-head"><div class="sidebar-head-dot" style="background:var(--yellow)"></div>Quick Reference</div>
+      <div class="panel-head"><div class="panel-head-dot" style="background:var(--yellow)"></div>Quick Reference</div>
       <div class="rs-body">
-        <div class="rs-section">
-          <div class="rs-label">Pricing Ladder</div>
-          <div class="rs-card">
-            <strong>Price Objection — Use the ladder:</strong>
-            <div class="price-ladder">
-              <div class="price-step">$59</div>
-              <div class="price-arrow">→</div>
-              <div class="price-step">$54</div>
-              <div class="price-arrow">→</div>
-              <div class="price-step">$49/mo</div>
-            </div>
+        <div class="rs-section-label">MF Negotiation Order</div>
+        <div class="rs-card">
+          <strong>Start at $59 — Never offer lower first</strong>
+          Only reduce MF after they object to price:
+          <div class="price-ladder">
+            <div class="price-step">$59/mo</div>
+            <div class="price-arrow">→</div>
+            <div class="price-step">$54/mo</div>
+            <div class="price-arrow">→</div>
+            <div class="price-step">$49/mo</div>
           </div>
         </div>
-        <div class="rs-section">
-          <div class="rs-label">Key Strategies</div>
-          <div class="strategy-item"><strong>💸 Too Expensive</strong>Break it down: less than $2/day. Compare to time value of cleaning yourself.</div>
-          <div class="strategy-item"><strong>🤔 Need Time</strong>Ask what's holding them back. Tentative book → confirm later. Create urgency.</div>
-          <div class="strategy-item"><strong>🧹 DIY Objection</strong>Agree, then flip: "That's exactly why members love it — more time for what matters."</div>
-          <div class="strategy-item"><strong>❌ Cancel</strong>Pause, empathize, offer downgrade or skip. Never just let them cancel.</div>
-          <div class="strategy-item"><strong>📋 Cancel Fee</strong>$99 fee only if cancel within first 6 months. Frame it as a commitment to their own clean home.</div>
+
+        <div class="rs-section-label">FCF Products</div>
+        <div class="rs-card">
+          <strong>ForeverClean (FCF) — PRIMARY CLOSE</strong>
+          • Today: $19 (1st month membership)<br>
+          • 2hr clean = FREE (just $19 today)<br>
+          • 3hr clean = FREE (just $19 today)<br>
+          • 4hr clean = $38 ($19 + $19 extra hr)<br>
+          • 6hr clean = $78 ($19 + $59 extra 3hrs)<br>
+          • Monthly: $59/mo after 1st month<br>
+          • Future cleanings: ~$23/hr<br>
+          • ETF: $35 × hours if cancel before 6 months
         </div>
-        <div class="rs-section">
-          <div class="rs-label">Products</div>
-          <div class="rs-card">
-            <strong>ForeverClean (FCF)</strong>$49/month membership. Recurring cleans, member pricing, easy to skip/pause.
-          </div>
-          <div class="rs-card" style="margin-top:8px">
-            <strong>Trial Clean</strong>One-time $59 clean to experience the service before committing.
-          </div>
-          <div class="rs-card" style="margin-top:8px">
-            <strong>OTC</strong>One-time clean at full price. Always try to convert to FCF.
-          </div>
+        <div class="rs-card">
+          <strong>Trial Cleaning — FALLBACK OFFER</strong>
+          • Discounted one-time rate<br>
+          • 30 days to cancel, no obligation<br>
+          • If no cancel: auto-enrolls $59/mo FCF<br>
+          • ETF applies if cancel before 6 paid months
+        </div>
+        <div class="rs-card">
+          <strong>One-Time Clean (OTC)</strong>
+          • Full price, no membership<br>
+          • Always try to convert to FCF first
+        </div>
+
+        <div class="rs-section-label">Key Objection Angles</div>
+        <div class="strategy-item"><strong>💸 Too Expensive → Math it down</strong>Less than $2/day. Compare: national avg $150 for 2hrs vs $19 today. Future cleans $23/hr vs $75+ avg.</div>
+        <div class="strategy-item"><strong>🤔 Need Time → Create urgency</strong>Vouchers are limited. Ask what's holding them back. Offer tentative booking they can change free anytime.</div>
+        <div class="strategy-item"><strong>🧹 DIY → Flip it</strong>"That's exactly why members love it — more time for what matters most to you."</div>
+        <div class="strategy-item"><strong>🚫 No Membership → Qualify then pivot</strong>Is it cost, commitment, or frequency? Then adjust MF or offer Trial Clean.</div>
+        <div class="strategy-item"><strong>📋 Cancel Fee → Frame as protection</strong>$35 × hours. "It's designed for customers serious about a clean home, and it's still far below any one-time rate."</div>
+        <div class="strategy-item"><strong>👫 Ask Spouse → Hold the spot</strong>"I can hold your voucher and stay on the line while you check with them real quick."</div>
+
+        <div class="rs-section-label">Homeaglow Stats</div>
+        <div class="rs-card">
+          #1 largest US cleaning company<br>
+          10+ years · 2.6M cleanings<br>
+          ~900K customers · 20K+ cleaners<br>
+          91.4% jobs by 4.5★+ cleaners<br>
+          50% requests claimed within 50 min<br>
+          24/7 customer support<br>
+          Happiness Guarantee
+        </div>
+
+        <div class="rs-section-label">ECOC Framework</div>
+        <div class="rs-card">
+          <strong>E</strong>mpathize → <strong>C</strong>larify → <strong>O</strong>vercome → <strong>C</strong>lose<br>
+          Always confirm what you heard before rebutting.
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -306,7 +331,11 @@
 <script>
   let agent = null, currentCall = null, sessionHistory = [];
   let isCapturing = false, recognition = null;
-  let convCtx = [], autoTimer = null;
+  let convCtx = [];        // Full live conversation: {role, content}
+  let aiHistory = [];      // Every AI response given this call
+  let objectionLog = {};   // Track how many times each objection was hit
+  let callStage = 'discovery';
+  let autoTimer = null;
 
   // LOGIN
   document.getElementById('loginForm').addEventListener('submit', e => {
@@ -324,10 +353,14 @@
   function startNewCall() {
     currentCall = { startTime: Date.now(), messages: [], agent: agent ? agent.name : 'Unknown' };
     convCtx = [];
+    aiHistory = [];
+    objectionLog = {};
+    callStage = 'discovery';
     document.getElementById('callNumber').textContent = '#' + (sessionHistory.length + 1);
-    document.getElementById('transcriptFeed').innerHTML = '<div class="t-empty">🎧<br><br>Start capturing to see the live transcript.</div>';
-    setTpWaiting();
+    document.getElementById('transcriptFeed').innerHTML = '<div class="t-empty">🎧<br><br>Start capturing to see live transcript.</div>';
+    setWaiting();
     document.getElementById('manualInput').value = '';
+    document.getElementById('interimText').textContent = '—';
   }
 
   function logout() {
@@ -337,12 +370,8 @@
     document.getElementById('loginModal').classList.remove('hidden');
   }
 
-  function setTpWaiting() {
-    document.getElementById('tpBody').innerHTML = `
-      <div class="tp-waiting">
-        <div class="tp-waiting-icon">🤖</div>
-        <div class="tp-waiting-text">Your next line will appear here.<br>Use quick actions or speak — AI fires automatically.</div>
-      </div>`;
+  function setWaiting() {
+    document.getElementById('tpBody').innerHTML = `<div class="tp-waiting"><div class="tp-waiting-icon">🤖</div><div class="tp-waiting-text">Your exact next line will appear here.<br>Tap an objection or type the situation.</div></div>`;
   }
 
   // AUDIO CAPTURE
@@ -355,7 +384,6 @@
     try {
       let stream;
       try {
-        // Try to get system audio (captures both sides through speakers/headset)
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
           video: false,
           audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 }
@@ -363,19 +391,16 @@
         const micStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true }
         });
-        // Mix both audio streams
         const ctx = new AudioContext();
         const dest = ctx.createMediaStreamDestination();
         ctx.createMediaStreamSource(displayStream).connect(dest);
         ctx.createMediaStreamSource(micStream).connect(dest);
         stream = dest.stream;
-        toast('✅ Capturing mic + system audio (both sides)', 'ok');
+        toast('✅ Capturing mic + system audio', 'ok');
       } catch(e) {
-        // Fallback: mic only
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        toast('🎙️ Mic only — to capture customer, share system audio', 'ok');
+        toast('🎙️ Mic only — check "Share system audio" for customer voice', 'ok');
       }
-
       startRecognition();
       isCapturing = true;
       document.getElementById('capBtn').className = 'btn-cap stop';
@@ -384,7 +409,7 @@
       document.getElementById('stext').textContent = 'Recording...';
       document.getElementById('capHint').textContent = 'Live transcription active';
     } catch(e) {
-      toast('Mic access denied — allow microphone permission', 'err');
+      toast('Mic access denied. Please allow microphone.', 'err');
     }
   }
 
@@ -395,7 +420,7 @@
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Captures mic + speaker/headset';
+    document.getElementById('capHint').textContent = 'Mic + speaker/headset audio';
     document.getElementById('interimText').textContent = '—';
   }
 
@@ -411,16 +436,17 @@
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
         if (e.results[i].isFinal) {
+          if (t.trim().length < 3) return; // ignore silence/noise
           addLine('customer', t);
           convCtx.push({ role: 'customer', content: t });
           scheduleAutoAI(t);
           document.getElementById('interimText').textContent = '—';
         } else { interim += t; }
       }
-      if (interim) document.getElementById('interimText').textContent = interim;
+      if (interim.length > 2) document.getElementById('interimText').textContent = interim;
     };
     recognition.onend = () => { if (isCapturing) { try { recognition.start(); } catch(e){} } };
-    recognition.onerror = e => { if (e.error !== 'no-speech') console.error('SR:', e.error); };
+    recognition.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('SR:', e.error); };
     recognition.start();
   }
 
@@ -434,27 +460,41 @@
     feed.scrollTop = feed.scrollHeight;
   }
 
-  // AUTO-FIRE AI after speech detected
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
+    // Auto-detect objection type from customer speech
+    const lower = text.toLowerCase();
+    if (lower.match(/too expensive|too much|cost|price|afford|cheap/)) {
+      callStage = 'price_objection';
+      objectionLog['price'] = (objectionLog['price'] || 0) + 1;
+    } else if (lower.match(/think about|call back|not ready|need time|let me|maybe later/)) {
+      callStage = 'stall_objection';
+      objectionLog['stall'] = (objectionLog['stall'] || 0) + 1;
+    } else if (lower.match(/membership|commit|monthly|subscribe|contract/)) {
+      callStage = 'membership_objection';
+      objectionLog['membership'] = (objectionLog['membership'] || 0) + 1;
+    } else if (lower.match(/cancel|fee|termination|etf/)) {
+      callStage = 'etf_objection';
+      objectionLog['etf'] = (objectionLog['etf'] || 0) + 1;
+    }
     autoTimer = setTimeout(() => {
-      document.getElementById('manualInput').value = 'Customer said: "' + text + '"';
+      document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
       generateAI();
-    }, 500);
+    }, 700);
   }
 
-  // QUICK OBJECTION BUTTONS
-  function fireObjection(text) {
-    document.getElementById('manualInput').value = 'Customer says: "' + text + '"';
+  function fire(situation) {
+    if (situation.includes('discovery')) callStage = 'discovery';
+    else if (situation.includes('pitch') || situation.includes('ForeverClean')) callStage = 'pitch';
+    else if (situation.includes('Trial')) callStage = 'trial_offer';
+    document.getElementById('manualInput').value = situation;
     generateAI();
   }
 
-  // KEYBOARD SHORTCUT
   function handleKey(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); generateAI(); }
   }
 
-  // MAIN AI CALL — ultra fast
   async function generateAI() {
     const input = document.getElementById('manualInput').value.trim();
     if (!input) { toast('Type the situation first', 'err'); return; }
@@ -463,33 +503,54 @@
     btn.disabled = true;
     btn.textContent = '...';
 
-    document.getElementById('tpBody').innerHTML = `
-      <div class="tp-loading">
-        <div class="tp-loading-icon">⚡</div>
-        <div class="tp-loading-bar"><div class="tp-loading-fill"></div></div>
-        <div class="tp-loading-text">Getting your line...</div>
-      </div>`;
+    document.getElementById('tpBody').innerHTML = `<div class="tp-loading"><div class="tp-loading-icon">⚡</div><div class="tp-loading-bar"><div class="tp-loading-fill"></div></div><div class="tp-loading-text">Getting your line...</div></div>`;
 
-    const ctx = convCtx.slice(-6).map(m => (m.role === 'customer' ? 'Customer' : 'Agent') + ': ' + m.content).join('\n');
+    // Send FULL conversation — everything said this call
+    const fullTranscript = convCtx
+      .map(m => (m.role === 'customer' ? 'CUSTOMER' : 'AGENT') + ': ' + m.content)
+      .join('\n');
 
-    const prompt = `You are an elite Angi/Homeaglow sales coach giving a live agent their EXACT NEXT LINE on an active call RIGHT NOW.
+    // Previous AI lines so it never repeats
+    const prevLines = aiHistory.slice(-6).map((r, i) => `[Line ${i+1}] ${r}`).join('\n');
 
-RECENT CONTEXT:
-${ctx || 'Beginning of call'}
+    // Objection frequency summary
+    const objSummary = Object.entries(objectionLog)
+      .map(([k, v]) => `${k} raised ${v}x`)
+      .join(' | ') || 'none yet';
 
-SITUATION:
+    const prompt = `LIVE HOMEAGLOW/ANGI SALES CALL IN PROGRESS.
+
+=== FULL CALL TRANSCRIPT (everything said so far) ===
+${fullTranscript || '(Call just started — no transcript yet)'}
+
+=== CALL STAGE: ${callStage} ===
+=== OBJECTIONS THIS CALL: ${objSummary} ===
+
+=== AI LINES ALREADY GIVEN — DO NOT REPEAT ANY OF THESE ===
+${prevLines || 'None yet'}
+
+=== CURRENT SITUATION / TRIGGER ===
 ${input}
 
-RULES — NON-NEGOTIABLE:
-1. Give ONLY the exact words the agent should say out loud — nothing else
-2. Max 2-3 sentences
-3. Never suggest backing down, giving up, or calling back later
-4. Always push toward ForeverClean ($49/mo), Trial ($59), or OTC booking
-5. For price objections use: $59 → $54 → $49/month
-6. Sound like a confident human, not a script robot
-7. No labels, no "Agent says:", just the raw line to read
+=== YOUR TASK ===
+You have the FULL context of this call. Every word the customer said. Every angle already tried. Every objection already hit.
 
-Output ONLY the line to say.`;
+Generate the agent's EXACT next line considering:
+1. What the customer has revealed about themselves (pain points, lifestyle, objections)
+2. What angles have already been used — pick a FRESH angle if same objection hits again
+3. What stage the call is at and what logically moves it forward
+4. If objection was hit multiple times — escalate: try Trial Clean, OTC, or a completely different emotional trigger
+5. If customer is softening — close harder and more specifically
+6. If customer is stuck — go back to their pain point and reframe why doing nothing costs more
+
+RULES:
+- 2-3 sentences MAX — read live on a call
+- Never repeat or closely paraphrase a previous line
+- Never suggest giving up, calling back, or "no pressure"
+- Never proactively offer $54 or $49 until $59 has been defended and rejected
+- Always close or build momentum at the end
+- Sound like a human, not a script robot
+- Output ONLY the exact words — no labels, no quotes, no explanation`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -499,20 +560,17 @@ Output ONLY the line to say.`;
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'API Error');
-      showTpResponse(data.text);
+      aiHistory.push(data.text); // Remember every line given
+      showResponse(data.text);
     } catch(e) {
-      document.getElementById('tpBody').innerHTML = `
-        <div class="tp-waiting">
-          <div class="tp-waiting-icon">❌</div>
-          <div class="tp-waiting-text" style="color:var(--red)">${e.message}<br><span style="font-size:11px;color:var(--text3)">Check Vercel env vars</span></div>
-        </div>`;
+      document.getElementById('tpBody').innerHTML = `<div class="tp-waiting"><div class="tp-waiting-icon">❌</div><div class="tp-waiting-text" style="color:var(--red)">${e.message}</div></div>`;
     } finally {
       btn.disabled = false;
-      btn.textContent = '⚡ Ask AI';
+      btn.textContent = '⚡ AI';
     }
   }
 
-  function showTpResponse(text) {
+  function showResponse(text) {
     document.getElementById('tpBody').innerHTML = `
       <div class="tp-response">
         <div class="tp-badge">⚡ Say This Now</div>
@@ -526,21 +584,29 @@ Output ONLY the line to say.`;
   }
 
   function copyLine() {
-    const t = document.getElementById('tpText').textContent;
-    navigator.clipboard.writeText(t);
+    const t = document.getElementById('tpText');
+    if (t) navigator.clipboard.writeText(t.textContent);
     toast('✅ Copied!', 'ok');
   }
 
   function usedLine() {
-    const t = document.getElementById('tpText') ? document.getElementById('tpText').textContent : '';
-    if (t) { addLine('agent', t); convCtx.push({ role: 'agent', content: t }); }
+    const t = document.getElementById('tpText');
+    if (t) {
+      const text = t.textContent;
+      addLine('agent', text);
+      convCtx.push({ role: 'agent', content: text });
+      // Advance call stage after pitch is delivered
+      if (callStage === 'discovery') callStage = 'pitch';
+      else if (callStage === 'pitch') callStage = 'close_attempt';
+    }
     document.getElementById('manualInput').value = '';
-    setTpWaiting();
+    setWaiting();
   }
 
-  function confirmBooking() {
-    addLine('agent', '[✅ BOOKING CONFIRMED]');
-    toast('🎉 Booking confirmed! Great close!', 'ok');
+  function confirmBooking(type) {
+    addLine('agent', '[✅ ' + type + ' BOOKING CONFIRMED]');
+    convCtx.push({ role: 'agent', content: type + ' booking confirmed' });
+    toast('🎉 ' + type + ' booked! Amazing close!', 'ok');
   }
 
   function endCall() {
@@ -554,7 +620,7 @@ Output ONLY the line to say.`;
   function toast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = 'toast ' + type + ' show';
+    t.className = 'toast ' + (type || '') + ' show';
     setTimeout(() => t.className = 'toast', 3000);
   }
 
