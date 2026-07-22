@@ -407,102 +407,24 @@
   }
 
   async function startCapture() {
-    // Show the audio source picker first
-    showAudioPicker();
+    // Start capturing immediately — no popup needed
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      startCaptureLoop();
+      activateCapture('🎙️ Capturing live — both sides');
+    } catch(e) {
+      toast('Mic access denied — please allow microphone', 'err');
+    }
   }
 
-  function showAudioPicker() {
-    // Remove existing picker if any
-    const existing = document.getElementById('audioPicker');
-    if (existing) existing.remove();
-
-    const picker = document.createElement('div');
-    picker.id = 'audioPicker';
-    picker.style.cssText = `
-      position:fixed;inset:0;background:rgba(7,7,15,0.92);display:flex;
-      align-items:center;justify-content:center;z-index:9999;
-    `;
-    picker.innerHTML = `
-      <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:32px;width:420px;max-width:90vw;">
-        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">🎙️ Choose Audio Source</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:24px;line-height:1.6;">
-          To capture the customer's voice, select how your Aircall audio plays on this computer.
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <button onclick="startWithTabAudio()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--accent);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🌐 <strong>Aircall is open in another tab</strong>
-            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">Best option — captures customer + your voice from the Aircall tab</div>
-          </button>
-          <button onclick="startWithSystemAudio()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🖥️ <strong>Aircall is on a separate app / phone</strong>
-            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">Shares screen audio — browser will ask you to pick a window</div>
-          </button>
-          <button onclick="startMicOnly()" style="padding:14px 16px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🎤 <strong>Mic only (agent voice only)</strong>
-            <div style="font-size:11px;color:var(--text2);margin-top:4px;font-weight:400;">AI still helps — you type what the customer says</div>
-          </button>
-        </div>
-        <button onclick="document.getElementById('audioPicker').remove()" style="width:100%;margin-top:16px;padding:10px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;">Cancel</button>
-      </div>
-    `;
-    document.body.appendChild(picker);
-  }
+  // Audio picker removed — capture starts immediately
 
   // SINGLE STREAM — captures all audio (mic + system mixed)
   // All speech labeled as "customer" — agent reads from AI screen so transcript = customer context
   // AI knows agent lines from its own history
   let activeRecognition = null;
 
-  async function startWithTabAudio() {
-    document.getElementById('audioPicker').remove();
-    try {
-      const tabStream = await navigator.mediaDevices.getDisplayMedia({
-        video: false,
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-      });
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioCtx = new AudioContext();
-      const dest = audioCtx.createMediaStreamDestination();
-      audioCtx.createMediaStreamSource(tabStream).connect(dest);
-      audioCtx.createMediaStreamSource(micStream).connect(dest);
-      startCaptureLoop();
-      activateCapture('✅ Capturing all audio — Aircall tab + mic');
-    } catch(e) {
-      startMicOnly();
-    }
-  }
 
-  async function startWithSystemAudio() {
-    document.getElementById('audioPicker').remove();
-    try {
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-      });
-      displayStream.getVideoTracks().forEach(t => t.stop());
-      if (displayStream.getAudioTracks().length === 0) {
-        toast('No system audio — try tab option or mic only', 'err');
-        startMicOnly(); return;
-      }
-      startCaptureLoop();
-      activateCapture('✅ System audio + mic captured');
-    } catch(e) {
-      startMicOnly();
-    }
-  }
-
-  async function startMicOnly() {
-    const existing = document.getElementById('audioPicker');
-    if (existing) existing.remove();
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      startCaptureLoop();
-      activateCapture('🎙️ Mic capturing — speak near phone for customer audio too');
-    } catch(e) {
-      toast('Mic access denied — please allow microphone', 'err');
-    }
-  }
 
   function startCaptureLoop() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -511,15 +433,17 @@
     let restartTimer = null;
     let pending = '';
     let sentenceTimer = null;
+    let lastActivity = Date.now();
 
-    function commit() {
-      const sentence = pending.trim();
-      pending = '';
+    function commit(force) {
       clearTimeout(sentenceTimer);
-      if (sentence.length < 3) return;
+      const sentence = pending.trim();
+      if (!sentence || sentence.length < 3) { pending = ''; return; }
+      pending = '';
       addLine('customer', sentence);
       convCtx.push({ role: 'customer', content: sentence });
-      scheduleAutoAI(sentence);
+      // Only auto-fire AI if sentence is meaningful (not just 1-2 words)
+      if (sentence.split(' ').length >= 3) scheduleAutoAI(sentence);
       document.getElementById('interimText').textContent = '—';
     }
 
@@ -531,14 +455,16 @@
       r.maxAlternatives = 1;
 
       r.onresult = e => {
+        lastActivity = Date.now();
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
             pending += (pending ? ' ' : '') + t;
+            // Give 2.5s of silence before committing — captures longer sentences
             clearTimeout(sentenceTimer);
-            sentenceTimer = setTimeout(commit, 1200);
+            sentenceTimer = setTimeout(commit, 2500);
           } else {
             interim += t;
           }
@@ -549,15 +475,17 @@
       };
 
       r.onend = () => {
-        commit();
+        // Commit pending before restart
+        if (pending.trim().length > 2) commit(true);
         if (!isCapturing) return;
         clearTimeout(restartTimer);
+        // Restart quickly to minimize gaps in capture
         restartTimer = setTimeout(() => {
           try {
             activeRecognition = makeRec();
             activeRecognition.start();
           } catch(err) { console.warn('SR restart:', err); }
-        }, 150);
+        }, 100);
       };
 
       r.onerror = e => {
@@ -570,7 +498,7 @@
             activeRecognition = makeRec();
             activeRecognition.start();
           } catch(err) {}
-        }, 500);
+        }, 300);
       };
 
       return r;
@@ -622,8 +550,8 @@
 
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
-    // Auto-detect objection type from customer speech
     const lower = text.toLowerCase();
+    // Detect objection type
     if (lower.match(/too expensive|too much|cost|price|afford|cheap/)) {
       callStage = 'price_objection';
       objectionLog['price'] = (objectionLog['price'] || 0) + 1;
@@ -638,10 +566,11 @@
       objectionLog['etf'] = (objectionLog['etf'] || 0) + 1;
     }
     updateTracker();
+    // Fire AI immediately — no delay, agent needs it NOW
     autoTimer = setTimeout(() => {
       document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
       generateAI();
-    }, 700);
+    }, 300);
   }
 
   function fire(situation) {
