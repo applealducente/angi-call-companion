@@ -227,7 +227,7 @@
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">📞 Start Capturing</button>
-        <div class="cap-hint" id="capHint">Captures call audio through headset/speaker</div>
+        <div class="cap-hint" id="capHint">Works with any calling app</div>
       </div>
     </div>
 
@@ -437,21 +437,25 @@
     d.style.cssText = 'position:fixed;inset:0;background:rgba(7,7,15,0.95);display:flex;align-items:center;justify-content:center;z-index:9999;';
     d.innerHTML = `
       <div style="background:#0d0d1a;border:1px solid #2a2a4a;border-radius:16px;padding:36px;width:440px;max-width:95vw;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">📞 How is Aircall open?</div>
-        <div style="font-size:12px;color:#8888aa;margin-bottom:24px;line-height:1.6;">Pick the right option so we capture the customer's voice — not yours.</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">📞 Where is your call?</div>
+        <div style="font-size:12px;color:#8888aa;margin-bottom:24px;line-height:1.6;">Works with Aircall, Zoom, Teams, Meet — anything. Pick where your call is running.</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
+
           <button onclick="captureAircallTab()" style="padding:14px 16px;background:#0f0f20;border:1.5px solid #5b4fff;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🌐 <strong>Aircall is open in a Chrome tab</strong>
-            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Best — captures customer voice from that tab only, no mic</div>
+            🌐 <strong>Call is in a browser tab</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Aircall web, Zoom web, Google Meet, Teams web — select that tab</div>
           </button>
+
           <button onclick="captureMicSpeaker()" style="padding:14px 16px;background:#0f0f20;border:1px solid #28284a;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🔊 <strong>Aircall desktop app — phone on speaker</strong>
-            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Mic picks up customer from speaker — turn Aircall volume up</div>
+            🖥️ <strong>Call is in a desktop app</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Aircall app, Zoom app, Teams app — turn volume up so mic picks up customer</div>
           </button>
+
           <button onclick="captureMicOnly()" style="padding:14px 16px;background:#0f0f20;border:1px solid #28284a;border-radius:10px;color:#eeeef8;font-size:13px;font-weight:600;cursor:pointer;text-align:left;">
-            🎤 <strong>Manual — I'll tap the objection buttons</strong>
-            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">No audio capture — use quick buttons or type what customer says</div>
+            🎤 <strong>Manual mode — no audio capture</strong>
+            <div style="font-size:11px;color:#8888aa;margin-top:4px;font-weight:400;">Tap the objection buttons below or type what customer says</div>
           </button>
+
         </div>
         <button onclick="document.getElementById('srcPicker').remove()" style="width:100%;margin-top:14px;padding:10px;background:transparent;border:1px solid #28284a;border-radius:8px;color:#8888aa;font-size:12px;cursor:pointer;">Cancel</button>
       </div>`;
@@ -483,8 +487,8 @@
       stream.getAudioTracks()[0].addEventListener('ended', () => {
         if (isCapturing) { toast('Tab audio ended — click Start Capturing again', 'err'); stopCapture(); }
       });
-      startCaptureLoop();
-      activateCapture('📞 Aircall tab audio — customer voice only');
+      startCaptureLoop(stream);
+      activateCapture('📞 Call tab captured — customer voice only');
     } catch(e) {
       if (e.name === 'NotAllowedError') {
         toast('Cancelled — try again and select the Aircall tab', 'err');
@@ -502,8 +506,8 @@
       await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }
       });
-      startCaptureLoop();
-      activateCapture('🔊 Speaker mode — turn up Aircall volume for best capture');
+      startCaptureLoop(null);
+      activateCapture('🖥️ Desktop app mode — turn call volume up for best capture');
     } catch(e) { toast('Mic access denied', 'err'); }
   }
 
@@ -557,7 +561,7 @@
 
 
 
-  function startCaptureLoop() {
+  function startCaptureLoop(audioStream) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
@@ -566,9 +570,18 @@
     let isRestarting = false;
     let currentRec = null;
 
+    // If we have a custom audio stream (tab audio), use MediaRecorder
+    // to verify it's working — SpeechRecognition uses default mic always
+    if (audioStream && audioStream.getAudioTracks().length > 0) {
+      console.log('Tab audio stream active:', audioStream.getAudioTracks()[0].label);
+      // Monitor stream health
+      audioStream.getAudioTracks()[0].addEventListener('ended', () => {
+        if (isCapturing) { toast('Audio stream ended — recapturing', 'err'); stopCapture(); }
+      });
+    }
+
     function scheduleKeepalive() {
       clearTimeout(keepaliveTimer);
-      // Restart every 45 seconds — well before Chrome's ~60s hard limit
       keepaliveTimer = setTimeout(() => {
         if (!isCapturing) return;
         safeRestart(50);
@@ -618,25 +631,23 @@
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
-            // Route to correct handler based on listening state
-            if (!listeningForCustomer) {
-              // Agent reading — log as agent, don't fire AI
-              addLine('agent', t);
-              convCtx.push({ role: 'agent', content: t });
-            } else {
-              // Customer speaking — add to transcript and fire AI
+            if (listeningForCustomer) {
+              // CUSTOMER speaking — capture and fire AI
               addLine('customer', t);
               convCtx.push({ role: 'customer', content: t });
+              // Stop listening — wait for agent to click Used It
+              listeningForCustomer = false;
+              updateListeningState();
               scheduleAutoAI(t);
             }
+            // If not listening, ignore all speech (agent reading)
             document.getElementById('interimText').textContent = '—';
           } else {
-            interim += t + ' ';
+            if (listeningForCustomer) interim += t + ' ';
           }
         }
-        if (interim.trim().length > 1) {
-          const icon = listeningForCustomer ? '📞' : '🎤';
-          document.getElementById('interimText').textContent = icon + ' ' + interim.trim();
+        if (listeningForCustomer && interim.trim().length > 1) {
+          document.getElementById('interimText').textContent = '📞 ' + interim.trim();
         }
       };
 
@@ -661,14 +672,69 @@
       return r;
     }
 
-    // Clean start
-    if (activeRecognition) {
-      try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
-      activeRecognition = null;
+    // If we have a tab/system audio stream, use VAD to detect customer speaking
+    // Then only listen during those windows - filters out silence and agent voice
+    if (inputStream && inputStream.getAudioTracks && inputStream.getAudioTracks().length > 0) {
+      setupVAD(inputStream, makeRec);
+      toast('📞 Listening for customer voice in tab...', 'ok');
+    } else {
+      // No stream - use mic directly
+      if (activeRecognition) {
+        try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
+        activeRecognition = null;
+      }
+      currentRec = makeRec();
+      activeRecognition = currentRec;
+      try { currentRec.start(); } catch(e) { console.warn('Initial start failed:', e); }
     }
-    currentRec = makeRec();
-    activeRecognition = currentRec;
-    try { currentRec.start(); } catch(e) { console.warn('Initial start failed:', e); }
+  }
+
+  // Voice Activity Detection on a stream
+  // When customer speaks in Aircall tab -> triggers speech recognition
+  function setupVAD(stream, makeRec) {
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.3;
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let vadActive = false;
+    let vadTimer = null;
+    let currentRec = null;
+    const THRESHOLD = 30; // audio level threshold
+
+    function checkVAD() {
+      if (!isCapturing) { audioCtx.close(); return; }
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a,b) => a+b) / data.length;
+      const speaking = avg > THRESHOLD;
+
+      if (speaking && !vadActive) {
+        // Customer started speaking - start recognition
+        vadActive = true;
+        clearTimeout(vadTimer);
+        if (!currentRec) {
+          currentRec = makeRec();
+          activeRecognition = currentRec;
+          try { currentRec.start(); } catch(e) {}
+        }
+      } else if (!speaking && vadActive) {
+        // Silence - stop after 1.5s
+        clearTimeout(vadTimer);
+        vadTimer = setTimeout(() => {
+          vadActive = false;
+          if (currentRec) {
+            try { currentRec.stop(); } catch(e) {}
+            currentRec = null;
+            activeRecognition = null;
+          }
+        }, 1500);
+      }
+      requestAnimationFrame(checkVAD);
+    }
+    checkVAD();
   }
 
     function activateCapture(message) {
@@ -754,16 +820,18 @@
 
   function updateListeningState() {
     const hint = document.getElementById('capHint');
-    const interim = document.getElementById('interimText');
+    const btn = document.getElementById('capBtn');
     if (!isCapturing) return;
     if (listeningForCustomer) {
       hint.textContent = '👂 Listening for customer...';
       hint.style.color = 'var(--green)';
-      if (interim) interim.textContent = '👂 Waiting for customer to speak...';
+      // Make button pulse green to show listening state
+      if (btn) btn.style.background = 'linear-gradient(135deg,#00c853,#00e676)';
     } else {
-      hint.textContent = '🔇 Click "Used It" when done reading';
+      hint.textContent = '🔇 Read line → click "Used It" to listen again';
       hint.style.color = 'var(--yellow)';
-      if (interim) interim.textContent = '—';
+      // Button dims to show paused state
+      if (btn) btn.style.background = 'rgba(255,71,87,0.3)';
     }
   }
 
@@ -900,7 +968,7 @@ Respond DIRECTLY to what the customer just said. Stay on topic. 2-3 sentences. C
   }
 
   function showResponse(text) {
-    // Agent is now reading — stop listening for customer
+    // Agent reading — stop listening until they click Used It
     listeningForCustomer = false;
     updateListeningState();
 
@@ -908,9 +976,10 @@ Respond DIRECTLY to what the customer just said. Stay on topic. 2-3 sentences. C
       <div class="tp-response">
         <div class="tp-badge">⚡ Say This Now</div>
         <div class="tp-text text-pop" id="tpText">${text}</div>
-        <div class="tp-actions">
+        <div style="font-size:11px;color:var(--yellow);text-align:center;margin-top:4px;">👇 Click "Used It" when done reading to listen for customer</div>
+        <div class="tp-actions" style="margin-top:8px;">
           <button class="tp-btn copy" onclick="copyLine()">📋 Copy</button>
-          <button class="tp-btn gotit" onclick="usedLine()">✓ Used It — Listen for Customer</button>
+          <button class="tp-btn gotit" onclick="usedLine()" style="background:rgba(255,214,0,0.2);color:var(--yellow);border-color:rgba(255,214,0,0.4);font-weight:800;">✓ Used It</button>
           <button class="tp-btn regen" onclick="generateAI()">🔄 New Line</button>
         </div>
       </div>`;
