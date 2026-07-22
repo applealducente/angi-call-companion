@@ -487,65 +487,12 @@
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
-    let restartTimer = null;
-    let keepaliveTimer = null;
-    let isRestarting = false;
-    let currentRec = null;
-
-    // If we have a custom audio stream (tab audio), use MediaRecorder
-    // to verify it's working — SpeechRecognition uses default mic always
-    if (inputStream && inputStream.getAudioTracks && inputStream.getAudioTracks().length > 0) {
-      console.log('Stream active');
-      // Monitor stream health
-      inputStream.getAudioTracks()[0].addEventListener('ended', () => {
-        if (isCapturing) { toast('Audio stream ended — recapturing', 'err'); stopCapture(); }
-      });
-    }
-
-    function scheduleKeepalive() {
-      clearTimeout(keepaliveTimer);
-      keepaliveTimer = setTimeout(() => {
-        if (!isCapturing) return;
-        safeRestart(50);
-      }, 45000);
-    }
-
-    function safeRestart(delay) {
-      if (isRestarting) return;
-      isRestarting = true;
-      clearTimeout(restartTimer);
-      restartTimer = setTimeout(() => {
-        try {
-          if (currentRec) {
-            currentRec.onend = null;
-            currentRec.onerror = null;
-            try { currentRec.stop(); } catch(e) {}
-            currentRec = null;
-          }
-          currentRec = makeRec();
-          currentRec.start();
-          activeRecognition = currentRec;
-        } catch(e) {
-          console.warn('Restart failed:', e);
-          isRestarting = false;
-          // Try again after short delay
-          clearTimeout(restartTimer);
-          restartTimer = setTimeout(() => safeRestart(100), 500);
-        }
-      }, delay || 80);
-    }
-
-    function makeRec() {
+    function start() {
+      if (!isCapturing) return;
       const r = new SR();
       r.continuous = true;
       r.interimResults = true;
       r.lang = 'en-US';
-      r.maxAlternatives = 1;
-
-      r.onstart = () => {
-        isRestarting = false;
-        scheduleKeepalive();
-      };
 
       r.onresult = e => {
         let interim = '';
@@ -553,66 +500,36 @@
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
-            if (listeningForCustomer) {
-              // CUSTOMER speaking — capture and fire AI
-              addLine('customer', t);
-              convCtx.push({ role: 'customer', content: t });
-              // Stop listening — wait for agent to click Used It
-              listeningForCustomer = false;
-              updateListeningState();
-              scheduleAutoAI(t);
-            }
-            // If not listening, ignore all speech (agent reading)
+            addLine('customer', t);
+            convCtx.push({ role: 'customer', content: t });
             document.getElementById('interimText').textContent = '—';
+            // Fire AI completely async — never blocks recognition
+            setTimeout(() => scheduleAutoAI(t), 0);
           } else {
-            if (listeningForCustomer) interim += t + ' ';
+            interim += t;
           }
         }
-        if (listeningForCustomer && interim.trim().length > 1) {
-          document.getElementById('interimText').textContent = '📞 ' + interim.trim();
+        if (interim.length > 1) {
+          document.getElementById('interimText').textContent = '📞 ' + interim;
         }
       };
 
       r.onend = () => {
-        if (!isCapturing) return;
-        // Always restart — never let recognition die
-        safeRestart(80);
+        if (isCapturing) setTimeout(start, 100);
       };
 
       r.onerror = e => {
-        if (e.error === 'no-speech') return; // normal silence
-        if (e.error === 'aborted') {
-          isRestarting = false;
-          return;
-        }
-        console.warn('SR error:', e.error);
-        if (!isCapturing) return;
-        isRestarting = false;
-        safeRestart(300);
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        if (isCapturing) setTimeout(start, 300);
       };
 
-      return r;
+      try { r.start(); } catch(e) { if (isCapturing) setTimeout(start, 500); }
     }
 
-    // If we have a tab/system audio stream, use VAD to detect customer speaking
-    // Then only listen during those windows - filters out silence and agent voice
-    if (inputStream && inputStream.getAudioTracks && inputStream.getAudioTracks().length > 0) {
-      setupVAD(inputStream, makeRec);
-      toast('📞 Listening for customer voice in tab...', 'ok');
-    } else {
-      // No stream - use mic directly
-      if (activeRecognition) {
-        try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
-        activeRecognition = null;
-      }
-      currentRec = makeRec();
-      activeRecognition = currentRec;
-      try { currentRec.start(); } catch(e) { console.warn('Initial start failed:', e); }
-    }
+    start();
   }
 
-  // Voice Activity Detection on a stream
-  // When customer speaks in Aircall tab -> triggers speech recognition
+
   function setupVAD(stream, makeRec) {
     const audioCtx = new AudioContext();
     const source = audioCtx.createMediaStreamSource(stream);
