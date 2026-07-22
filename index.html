@@ -209,7 +209,7 @@
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">🎙️ Start Capturing</button>
-        <div class="cap-hint" id="capHint">Select screen → ✅ Share system audio</div>
+        <div class="cap-hint" id="capHint">Captures call audio through headset/speaker</div>
       </div>
     </div>
 
@@ -408,10 +408,10 @@
 
   async function startCapture() {
     try {
-      // Chrome on Windows requires video:true for getDisplayMedia
-      // We request it but immediately stop video tracks — only audio matters
+      // SYSTEM AUDIO ONLY — captures Aircall speaker/headset (customer voice)
+      // No mic — agent voice never enters the recognition
       const sysStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: true,  // Chrome needs video:true — stopped immediately
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
@@ -420,75 +420,37 @@
         }
       });
 
-      // Stop video immediately — we only want audio
+      // Kill video immediately
       sysStream.getVideoTracks().forEach(t => t.stop());
 
-      const hasSysAudio = sysStream.getAudioTracks().length > 0;
+      if (sysStream.getAudioTracks().length === 0) {
+        sysStream.getTracks().forEach(t => t.stop());
+        toast('No audio captured — check the "Share system audio" checkbox and try again', 'err');
+        return;
+      }
 
-      // Also grab mic
-      let micStream = null;
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false
-          }
-        });
-      } catch(e) {}
-
-      // Mix system audio + mic
+      // Boost volume — customer voice from speakers can be quiet
       const audioCtx = new AudioContext({ sampleRate: 44100 });
+      const source = audioCtx.createMediaStreamSource(sysStream);
+      const gain = audioCtx.createGain();
+      gain.gain.value = 3.0;
+      source.connect(gain);
       const dest = audioCtx.createMediaStreamDestination();
-
-      if (hasSysAudio) {
-        const sysSource = audioCtx.createMediaStreamSource(sysStream);
-        const sysGain = audioCtx.createGain();
-        sysGain.gain.value = 2.5; // boost customer voice
-        sysSource.connect(sysGain);
-        sysGain.connect(dest);
-      }
-
-      if (micStream) {
-        const micSource = audioCtx.createMediaStreamSource(micStream);
-        micSource.connect(dest);
-      }
-
-      window._captureStream = dest.stream;
-      window._audioCtx = audioCtx;
+      gain.connect(dest);
+      window._sysAudioCtx = audioCtx;
 
       startCaptureLoop();
+      activateCapture('📞 Customer audio only — agent voice excluded');
 
-      if (hasSysAudio) {
-        activateCapture('✅ Both sides captured — customer + agent');
-      } else {
-        activateCapture('🎤 Mic only — check "Share system audio" next time');
-      }
-
-      // Auto-stop if user ends screen share
-      sysStream.getAudioTracks()[0]?.addEventListener('ended', () => {
-        if (isCapturing) stopCapture();
+      sysStream.getAudioTracks()[0].addEventListener('ended', () => {
+        if (isCapturing) { toast('Audio stream ended', 'err'); stopCapture(); }
       });
 
     } catch(e) {
       if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
-        // Cancelled — fallback to mic only
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-          startCaptureLoop();
-          activateCapture('🎤 Mic only active');
-        } catch(err) {
-          toast('Mic access denied', 'err');
-        }
+        toast('Cancelled — try again and check Share system audio ✅', 'err');
       } else {
-        // Last resort — mic only
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-          startCaptureLoop();
-          activateCapture('🎤 Mic only active');
-        } catch(err) {
-          toast('Mic access denied', 'err');
-        }
+        toast('Error: ' + e.message, 'err');
       }
     }
   }
@@ -636,7 +598,7 @@
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Pick any window → check "Share system audio"';
+    document.getElementById('capHint').textContent = 'Captures call audio through headset/speaker';
     document.getElementById('interimText').textContent = '—';
   }
 
