@@ -400,7 +400,7 @@
     aiHistory = [];
     objectionLog = {};
     callStage = 'discovery';
-    listeningForCustomer = true; // start call listening for customer
+    listeningForCustomer = true;
     document.getElementById('callNumber').textContent = '#' + (sessionHistory.length + 1);
     document.getElementById('transcriptFeed').innerHTML = '<div class="t-empty">🎧<br><br>Start capturing to see live transcript.</div>';
     setWaiting();
@@ -661,6 +661,7 @@
 
     function activateCapture(message) {
     isCapturing = true;
+    listeningForCustomer = true;
     document.getElementById('capBtn').className = 'btn-cap stop';
     document.getElementById('capBtn').innerHTML = '⏹ Stop';
     document.getElementById('sdot').classList.add('on');
@@ -703,17 +704,6 @@
 
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
-
-    // Only fire AI when we're listening for customer
-    // Agent reading is ignored until they click "Used It"
-    if (!listeningForCustomer) {
-      // Still log it as agent context but don't fire AI
-      addLine('agent', text);
-      convCtx.push({ role: 'agent', content: text });
-      return;
-    }
-
-    // We're listening — this is the customer speaking
     const lower = text.toLowerCase();
     if (lower.match(/too expensive|too much|cost|price|afford|cheap/)) {
       callStage = 'price_objection';
@@ -730,10 +720,6 @@
     }
 
     updateTracker();
-    // Stop listening after customer speaks — wait for agent to click Used It again
-    listeningForCustomer = false;
-    updateListeningState();
-
     autoTimer = setTimeout(() => {
       document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
       generateAI();
