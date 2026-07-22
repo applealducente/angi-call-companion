@@ -254,9 +254,8 @@
           <button class="btn-ask" id="askBtn" onclick="generateAI()">⚡ AI</button>
         </div>
         <div class="bottom-row">
-          <button class="btn-booking" onclick="confirmBooking('FCF')">✓ FCF Booked</button>
-          <button class="btn-otc" onclick="confirmBooking('OTC')">✓ OTC Booked</button>
-          <button class="btn-trial" onclick="confirmBooking('Trial')">✓ Trial Booked</button>
+          <button class="btn-booking" onclick="confirmBooking('FCF')">✅ FCF Closed</button>
+          <button class="btn-trial" onclick="confirmBooking('OTC/Trial')">🎉 Closed the Sale</button>
           <button class="btn-end" onclick="endCall()">End Call</button>
         </div>
       </div>
@@ -450,9 +449,10 @@
     document.body.appendChild(picker);
   }
 
-  // DUAL STREAM: separate mic (agent) and system audio (customer)
-  let agentRecognition = null;
-  let customerRecognition = null;
+  // SINGLE STREAM — captures all audio (mic + system mixed)
+  // All speech labeled as "customer" — agent reads from AI screen so transcript = customer context
+  // AI knows agent lines from its own history
+  let activeRecognition = null;
 
   async function startWithTabAudio() {
     document.getElementById('audioPicker').remove();
@@ -461,14 +461,14 @@
         video: false,
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
       });
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }
-      });
-      startDualRecognition(micStream, tabStream);
-      activateCapture('✅ Agent mic + Aircall tab — both sides labeled correctly');
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new AudioContext();
+      const dest = audioCtx.createMediaStreamDestination();
+      audioCtx.createMediaStreamSource(tabStream).connect(dest);
+      audioCtx.createMediaStreamSource(micStream).connect(dest);
+      startCaptureLoop();
+      activateCapture('✅ Capturing all audio — Aircall tab + mic');
     } catch(e) {
-      if (e.name === 'NotAllowedError') { startMicOnly(); return; }
-      toast('Tab capture failed — using mic only', 'err');
       startMicOnly();
     }
   }
@@ -482,16 +482,12 @@
       });
       displayStream.getVideoTracks().forEach(t => t.stop());
       if (displayStream.getAudioTracks().length === 0) {
-        toast('No system audio found — try "Aircall in another tab" instead', 'err');
+        toast('No system audio — try tab option or mic only', 'err');
         startMicOnly(); return;
       }
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }
-      });
-      startDualRecognition(micStream, displayStream);
-      activateCapture('✅ Agent mic + system audio — both sides labeled correctly');
+      startCaptureLoop();
+      activateCapture('✅ System audio + mic captured');
     } catch(e) {
-      toast('System audio failed — using mic only', 'err');
       startMicOnly();
     }
   }
@@ -500,46 +496,39 @@
     const existing = document.getElementById('audioPicker');
     if (existing) existing.remove();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-      startSingleRecognition(stream, 'agent');
-      activateCapture('🎤 Mic only (Agent) — type customer lines for full AI context');
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      startCaptureLoop();
+      activateCapture('🎙️ Mic capturing — speak near phone for customer audio too');
     } catch(e) {
-      toast('Mic access denied. Please allow microphone in browser settings.', 'err');
+      toast('Mic access denied — please allow microphone', 'err');
     }
   }
 
-  function startDualRecognition(micStream, customerStream) {
-    // Agent recognition — from microphone
-    startSingleRecognition(micStream, 'agent');
-    // Customer recognition — from system/tab audio
-    startSingleRecognition(customerStream, 'customer');
-  }
-
-  function startSingleRecognition(stream, role) {
+  function startCaptureLoop() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
-    let restartTimeout = null;
-    let pendingFinal = '';
+    let restartTimer = null;
+    let pending = '';
     let sentenceTimer = null;
 
-    function commitSentence() {
-      if (pendingFinal.trim().length > 2) {
-        const sentence = pendingFinal.trim();
-        addLine(role, sentence);
-        convCtx.push({ role, content: sentence });
-        if (role === 'customer') scheduleAutoAI(sentence);
-        pendingFinal = '';
-        document.getElementById('interimText').textContent = '—';
-      }
+    function commit() {
+      const sentence = pending.trim();
+      pending = '';
+      clearTimeout(sentenceTimer);
+      if (sentence.length < 3) return;
+      addLine('customer', sentence);
+      convCtx.push({ role: 'customer', content: sentence });
+      scheduleAutoAI(sentence);
+      document.getElementById('interimText').textContent = '—';
     }
 
-    function createRec() {
+    function makeRec() {
       const r = new SR();
       r.continuous = true;
       r.interimResults = true;
       r.lang = 'en-US';
-      r.maxAlternatives = 3;
+      r.maxAlternatives = 1;
 
       r.onresult = e => {
         let interim = '';
@@ -547,71 +536,64 @@
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
-            pendingFinal += (pendingFinal ? ' ' : '') + t;
+            pending += (pending ? ' ' : '') + t;
             clearTimeout(sentenceTimer);
-            sentenceTimer = setTimeout(commitSentence, 900);
-          } else { interim += t; }
+            sentenceTimer = setTimeout(commit, 1200);
+          } else {
+            interim += t;
+          }
         }
-        if (interim.trim().length > 1) {
-          const icon = role === 'agent' ? '🎤' : '📞';
-          document.getElementById('interimText').textContent = icon + ' ' + interim.trim();
+        if (interim.length > 1) {
+          document.getElementById('interimText').textContent = '📞 ' + interim;
         }
       };
 
       r.onend = () => {
-        commitSentence();
-        if (isCapturing) {
-          clearTimeout(restartTimeout);
-          restartTimeout = setTimeout(() => {
-            try {
-              const newR = createRec();
-              if (role === 'agent') agentRecognition = newR;
-              else customerRecognition = newR;
-              newR.start();
-            } catch(err) {}
-          }, 50);
-        }
+        commit();
+        if (!isCapturing) return;
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          try {
+            activeRecognition = makeRec();
+            activeRecognition.start();
+          } catch(err) { console.warn('SR restart:', err); }
+        }, 150);
       };
 
       r.onerror = e => {
         if (e.error === 'no-speech' || e.error === 'aborted') return;
-        console.warn('SR (' + role + '):', e.error);
-        if (isCapturing) {
-          clearTimeout(restartTimeout);
-          restartTimeout = setTimeout(() => {
-            try {
-              const newR = createRec();
-              if (role === 'agent') agentRecognition = newR;
-              else customerRecognition = newR;
-              newR.start();
-            } catch(err) {}
-          }, 300);
-        }
+        console.warn('SR error:', e.error);
+        if (!isCapturing) return;
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          try {
+            activeRecognition = makeRec();
+            activeRecognition.start();
+          } catch(err) {}
+        }, 500);
       };
+
       return r;
     }
 
-    const r = createRec();
-    if (role === 'agent') agentRecognition = r;
-    else customerRecognition = r;
-    r.start();
+    if (activeRecognition) { try { activeRecognition.stop(); } catch(e){} }
+    activeRecognition = makeRec();
+    activeRecognition.start();
   }
 
   function activateCapture(message) {
     isCapturing = true;
     document.getElementById('capBtn').className = 'btn-cap stop';
-    document.getElementById('capBtn').innerHTML = '⏹ Stop Capturing';
+    document.getElementById('capBtn').innerHTML = '⏹ Stop';
     document.getElementById('sdot').classList.add('on');
-    document.getElementById('stext').textContent = 'Recording...';
+    document.getElementById('stext').textContent = 'Live';
     document.getElementById('capHint').textContent = message;
-    toast(message, 'ok');
   }
 
   function stopCapture() {
-    if (agentRecognition) { try { agentRecognition.stop(); } catch(e){} agentRecognition = null; }
-    if (customerRecognition) { try { customerRecognition.stop(); } catch(e){} customerRecognition = null; }
-    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
     isCapturing = false;
+    if (activeRecognition) { try { activeRecognition.stop(); } catch(e){} activeRecognition = null; }
+    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
     document.getElementById('capBtn').className = 'btn-cap start';
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
@@ -620,9 +602,7 @@
     document.getElementById('interimText').textContent = '—';
   }
 
-
-
-  function addLine(role, text) {
+    function addLine(role, text) {
     const feed = document.getElementById('transcriptFeed');
     if (feed.querySelector('.t-empty')) feed.innerHTML = '';
     const d = document.createElement('div');
