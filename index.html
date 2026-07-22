@@ -441,7 +441,8 @@
       startCaptureLoop(stream);
       activateCapture('🎙️ Capturing — both sides');
     } catch(e) {
-      toast('Mic access denied — allow microphone in Chrome settings', 'err');
+      console.error('Capture error:', e.name, e.message);
+      toast('Error: ' + e.name + ' — ' + e.message, 'err');
     }
   }
 
