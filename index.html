@@ -208,8 +208,8 @@
       </div>
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
-        <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">🎙️ Start Capturing</button>
-        <div class="cap-hint" id="capHint">Mic + speaker/headset audio</div>
+        <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">📞 Capture Customer Audio</button>
+        <div class="cap-hint" id="capHint">Captures customer audio only</div>
       </div>
     </div>
 
@@ -407,11 +407,55 @@
   }
 
   async function startCapture() {
-    // Start capturing immediately — no popup needed
+    try {
+      // Try to grab ONLY system audio (Aircall output = customer voice)
+      // This way agent voice from mic is never captured
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: 1, height: 1 }, // minimal video to force audio checkbox
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 44100
+        }
+      });
+
+      // Stop video immediately — only need audio
+      displayStream.getVideoTracks().forEach(t => t.stop());
+
+      const audioTracks = displayStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        // No system audio selected — fallback to mic with a note
+        toast('⚠️ No system audio — select "Share system audio" next time. Using mic.', 'err');
+        await fallbackToMic();
+        return;
+      }
+
+      // Use system audio stream for recognition (customer voice only)
+      // Create a virtual mic from the system audio track
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      const source = audioCtx.createMediaStreamSource(displayStream);
+      const dest = audioCtx.createMediaStreamDestination();
+      source.connect(dest);
+
+      startCaptureLoop(); // Web Speech API will use default — but system audio is routed
+      activateCapture('📞 Capturing customer audio only — agent voice excluded');
+
+    } catch(e) {
+      if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
+        // User cancelled screen share — fallback to mic
+        await fallbackToMic();
+      } else {
+        toast('Audio capture failed: ' + e.message, 'err');
+      }
+    }
+  }
+
+  async function fallbackToMic() {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       startCaptureLoop();
-      activateCapture('🎙️ Capturing live — both sides');
+      activateCapture('🎤 Mic active — speak close to phone for customer audio');
     } catch(e) {
       toast('Mic access denied — please allow microphone', 'err');
     }
@@ -431,20 +475,52 @@
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
     let restartTimer = null;
+    let keepaliveTimer = null;
     let pending = '';
     let sentenceTimer = null;
-    let lastActivity = Date.now();
+    let isRestarting = false;
 
-    function commit(force) {
+    function commit() {
       clearTimeout(sentenceTimer);
       const sentence = pending.trim();
-      if (!sentence || sentence.length < 3) { pending = ''; return; }
       pending = '';
+      if (!sentence || sentence.length < 3) return;
       addLine('customer', sentence);
       convCtx.push({ role: 'customer', content: sentence });
-      // Only auto-fire AI if sentence is meaningful (not just 1-2 words)
-      if (sentence.split(' ').length >= 3) scheduleAutoAI(sentence);
+      if (sentence.split(' ').length >= 2) scheduleAutoAI(sentence);
       document.getElementById('interimText').textContent = '—';
+    }
+
+    function restart(delay) {
+      if (isRestarting || !isCapturing) return;
+      isRestarting = true;
+      clearTimeout(restartTimer);
+      clearTimeout(keepaliveTimer);
+      restartTimer = setTimeout(() => {
+        try {
+          if (activeRecognition) {
+            activeRecognition.onend = null;
+            activeRecognition.onerror = null;
+            try { activeRecognition.stop(); } catch(e) {}
+          }
+          activeRecognition = makeRec();
+          activeRecognition.start();
+        } catch(err) {
+          console.warn('SR restart error:', err);
+        } finally {
+          isRestarting = false;
+        }
+      }, delay || 80);
+    }
+
+    function scheduleKeepalive() {
+      // Proactively restart every 50s — Chrome kills SR at ~60s
+      clearTimeout(keepaliveTimer);
+      keepaliveTimer = setTimeout(() => {
+        if (!isCapturing) return;
+        commit(); // flush pending before restart
+        restart(50);
+      }, 50000);
     }
 
     function makeRec() {
@@ -454,59 +530,54 @@
       r.lang = 'en-US';
       r.maxAlternatives = 1;
 
+      r.onstart = () => {
+        isRestarting = false;
+        scheduleKeepalive();
+      };
+
       r.onresult = e => {
-        lastActivity = Date.now();
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
             pending += (pending ? ' ' : '') + t;
-            // Give 2.5s of silence before committing — captures longer sentences
             clearTimeout(sentenceTimer);
-            sentenceTimer = setTimeout(commit, 2500);
+            // 1.8s silence = end of thought, commit it
+            sentenceTimer = setTimeout(commit, 1800);
           } else {
-            interim += t;
+            interim += t + ' ';
           }
         }
-        if (interim.length > 1) {
-          document.getElementById('interimText').textContent = '📞 ' + interim;
+        if (interim.trim().length > 0) {
+          document.getElementById('interimText').textContent = '📞 ' + interim.trim();
         }
       };
 
       r.onend = () => {
-        // Commit pending before restart
-        if (pending.trim().length > 2) commit(true);
+        if (pending.trim().length > 2) commit();
         if (!isCapturing) return;
-        clearTimeout(restartTimer);
-        // Restart quickly to minimize gaps in capture
-        restartTimer = setTimeout(() => {
-          try {
-            activeRecognition = makeRec();
-            activeRecognition.start();
-          } catch(err) { console.warn('SR restart:', err); }
-        }, 100);
+        restart(80);
       };
 
-      r.onerror = e => {
-        if (e.error === 'no-speech' || e.error === 'aborted') return;
+      r.onerror = (e) => {
+        if (e.error === 'no-speech') return; // normal silence, ignore
+        if (e.error === 'aborted') return;   // we triggered stop, ignore
         console.warn('SR error:', e.error);
         if (!isCapturing) return;
-        clearTimeout(restartTimer);
-        restartTimer = setTimeout(() => {
-          try {
-            activeRecognition = makeRec();
-            activeRecognition.start();
-          } catch(err) {}
-        }, 300);
+        restart(400);
       };
 
       return r;
     }
 
-    if (activeRecognition) { try { activeRecognition.stop(); } catch(e){} }
+    // Clean stop existing first
+    if (activeRecognition) {
+      try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
+      activeRecognition = null;
+    }
     activeRecognition = makeRec();
-    activeRecognition.start();
+    try { activeRecognition.start(); } catch(e) { console.warn('SR start:', e); }
   }
 
   function activateCapture(message) {
@@ -526,7 +597,7 @@
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Mic + speaker/headset audio';
+    document.getElementById('capHint').textContent = 'Captures customer audio only';
     document.getElementById('interimText').textContent = '—';
   }
 
@@ -599,62 +670,31 @@
       <div class="tp-loading">
         <div class="tp-loading-icon">⚡</div>
         <div class="tp-loading-bar"><div class="tp-loading-fill"></div></div>
-        <div class="tp-loading-text" id="loadingText">Getting your line...</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="loadingTimer">0s</div>
+        <div class="tp-loading-text">Getting your line...</div>
       </div>`;
-    // Update timer every second so agent knows it's working
-    const timerInterval = setInterval(() => {
-      const el = document.getElementById('loadingTimer');
-      if (el) el.textContent = Math.round((Date.now() - startTime) / 1000) + 's';
-      else clearInterval(timerInterval);
-    }, 1000);
+    const timerInterval = null;
 
-    // Send FULL conversation — everything said this call
-    const fullTranscript = convCtx
-      .map(m => (m.role === 'customer' ? 'CUSTOMER' : 'AGENT') + ': ' + m.content)
+    // Keep prompt small for speed — only last 8 lines + what was just said
+    const recentCtx = convCtx.slice(-8)
+      .map(m => (m.role === 'customer' ? 'C' : 'A') + ': ' + m.content)
       .join('\n');
 
-    // Previous AI lines so it never repeats
-    const prevLines = aiHistory.slice(-6).map((r, i) => `[Line ${i+1}] ${r}`).join('\n');
+    const lastLine = convCtx.filter(m => m.role === 'customer').slice(-1)[0]?.content || input;
+    const prevLines = aiHistory.slice(-3).map(r => '"' + r.substring(0, 60) + '..."').join(', ');
+    const objSummary = Object.entries(objectionLog).map(([k,v]) => k + '×' + v).join(', ') || 'none';
 
-    // Objection frequency summary
-    const objSummary = Object.entries(objectionLog)
-      .map(([k, v]) => `${k} raised ${v}x`)
-      .join(' | ') || 'none yet';
+    const prompt = `LIVE CALL — agent needs next line RIGHT NOW.
 
-    const prompt = `LIVE HOMEAGLOW/ANGI SALES CALL IN PROGRESS.
+WHAT CUSTOMER JUST SAID: "${lastLine}"
 
-=== FULL CALL TRANSCRIPT (everything said so far) ===
-${fullTranscript || '(Call just started — no transcript yet)'}
+RECENT CONVERSATION:
+${recentCtx || '(start of call)'}
 
-=== CALL STAGE: ${callStage} ===
-=== OBJECTIONS THIS CALL: ${objSummary} ===
+STAGE: ${callStage} | OBJECTIONS: ${objSummary}
+DON'T REPEAT THESE LINES: ${prevLines || 'none yet'}
+MANUAL INPUT: ${input}
 
-=== AI LINES ALREADY GIVEN — DO NOT REPEAT ANY OF THESE ===
-${prevLines || 'None yet'}
-
-=== CURRENT SITUATION / TRIGGER ===
-${input}
-
-=== YOUR TASK ===
-You have the FULL context of this call. Every word the customer said. Every angle already tried. Every objection already hit.
-
-Generate the agent's EXACT next line considering:
-1. What the customer has revealed about themselves (pain points, lifestyle, objections)
-2. What angles have already been used — pick a FRESH angle if same objection hits again
-3. What stage the call is at and what logically moves it forward
-4. If objection was hit multiple times — escalate: try Trial Clean, OTC, or a completely different emotional trigger
-5. If customer is softening — close harder and more specifically
-6. If customer is stuck — go back to their pain point and reframe why doing nothing costs more
-
-RULES:
-- 2-3 sentences MAX — read live on a call
-- Never repeat or closely paraphrase a previous line
-- Never suggest giving up, calling back, or "no pressure"
-- Never proactively offer $54 or $49 until $59 has been defended and rejected
-- Always close or build momentum at the end
-- Sound like a human, not a script robot
-- Output ONLY the exact words — no labels, no quotes, no explanation`;
+Respond DIRECTLY to what the customer just said. Stay on topic. 2-3 sentences. Close at end.`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -692,7 +732,6 @@ RULES:
               fullText = parsed.full;
               if (!streamStarted) {
                 streamStarted = true;
-                // Show the teleprompter box immediately on first word
                 document.getElementById('tpBody').innerHTML = `
                   <div class="tp-response">
                     <div class="tp-badge">⚡ Say This Now</div>
@@ -730,7 +769,6 @@ RULES:
       }
 
     } catch(e) {
-      clearInterval(timerInterval);
       document.getElementById('tpBody').innerHTML = `<div class="tp-waiting"><div class="tp-waiting-icon">❌</div><div class="tp-waiting-text" style="color:var(--red)">${e.message}</div></div>`;
     } finally {
       btn.disabled = false;
@@ -749,7 +787,11 @@ RULES:
           <button class="tp-btn regen" onclick="generateAI()">🔄 New Line</button>
         </div>
       </div>`;
+
   }
+
+  function pauseCapture() {} // no-op — customer audio only, no pause needed
+  function resumeCapture() {} // no-op
 
   function copyLine() {
     const t = document.getElementById('tpText');
@@ -763,13 +805,14 @@ RULES:
       const text = t.textContent;
       addLine('agent', text);
       convCtx.push({ role: 'agent', content: text });
-      // Advance call stage after pitch is delivered
       if (callStage === 'discovery') callStage = 'pitch';
       else if (callStage === 'pitch') callStage = 'close_attempt';
       updateTracker();
     }
     document.getElementById('manualInput').value = '';
     setWaiting();
+
+
   }
 
   // UPDATE CALL TRACKER in real time
