@@ -208,8 +208,8 @@
       </div>
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
-        <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">📞 Capture Customer Audio</button>
-        <div class="cap-hint" id="capHint">Captures customer audio only</div>
+        <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">🎙️ Start Capturing</button>
+        <div class="cap-hint" id="capHint">Pick any window → check "Share system audio"</div>
       </div>
     </div>
 
@@ -408,10 +408,9 @@
 
   async function startCapture() {
     try {
-      // Try to grab ONLY system audio (Aircall output = customer voice)
-      // This way agent voice from mic is never captured
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: 1, height: 1 }, // minimal video to force audio checkbox
+      // Grab system audio directly — no picker, no video, just audio
+      const sysStream = await navigator.mediaDevices.getDisplayMedia({
+        video: false,
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
@@ -420,44 +419,68 @@
         }
       });
 
-      // Stop video immediately — only need audio
-      displayStream.getVideoTracks().forEach(t => t.stop());
+      // Also grab mic
+      let micStream = null;
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+      } catch(e) {}
 
-      const audioTracks = displayStream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        // No system audio selected — fallback to mic with a note
-        toast('⚠️ No system audio — select "Share system audio" next time. Using mic.', 'err');
-        await fallbackToMic();
-        return;
-      }
-
-      // Use system audio stream for recognition (customer voice only)
-      // Create a virtual mic from the system audio track
-      const audioCtx = new AudioContext({ sampleRate: 16000 });
-      const source = audioCtx.createMediaStreamSource(displayStream);
+      // Mix both into one stream for recognition
+      const audioCtx = new AudioContext({ sampleRate: 44100 });
       const dest = audioCtx.createMediaStreamDestination();
-      source.connect(dest);
 
-      startCaptureLoop(); // Web Speech API will use default — but system audio is routed
-      activateCapture('📞 Capturing customer audio only — agent voice excluded');
-
-    } catch(e) {
-      if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
-        // User cancelled screen share — fallback to mic
-        await fallbackToMic();
-      } else {
-        toast('Audio capture failed: ' + e.message, 'err');
+      if (sysStream.getAudioTracks().length > 0) {
+        const sysSource = audioCtx.createMediaStreamSource(sysStream);
+        // Boost system audio so customer voice is heard clearly
+        const sysGain = audioCtx.createGain();
+        sysGain.gain.value = 2.5;
+        sysSource.connect(sysGain);
+        sysGain.connect(dest);
       }
-    }
-  }
 
-  async function fallbackToMic() {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (micStream) {
+        const micSource = audioCtx.createMediaStreamSource(micStream);
+        const micGain = audioCtx.createGain();
+        micGain.gain.value = 1.0;
+        micSource.connect(micGain);
+        micGain.connect(dest);
+      }
+
+      // Set the mixed stream as default for speech recognition
+      window._captureStream = dest.stream;
+      window._audioCtx = audioCtx;
+
       startCaptureLoop();
-      activateCapture('🎤 Mic active — speak close to phone for customer audio');
+      activateCapture('✅ Live — capturing both sides');
+
+      // Handle stream ending (user stops share)
+      sysStream.getAudioTracks()[0]?.addEventListener('ended', () => {
+        if (isCapturing) {
+          toast('System audio ended — restarting mic only', 'err');
+          stopCapture();
+        }
+      });
+
     } catch(e) {
-      toast('Mic access denied — please allow microphone', 'err');
+      if (e.name === 'NotAllowedError') {
+        // User hit cancel — just use mic
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          window._captureStream = null;
+          startCaptureLoop();
+          activateCapture('🎤 Mic only — system audio not shared');
+        } catch(err) {
+          toast('Mic access denied', 'err');
+        }
+      } else {
+        toast('Capture failed: ' + e.message, 'err');
+      }
     }
   }
 
@@ -541,10 +564,17 @@
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
             if (t.length < 2) continue;
-            pending += (pending ? ' ' : '') + t;
+            // Commit each final result immediately — don't buffer
+            // This captures fluid speech without waiting for silence
+            const sentence = (pending + ' ' + t).trim();
+            pending = '';
             clearTimeout(sentenceTimer);
-            // 1.8s silence = end of thought, commit it
-            sentenceTimer = setTimeout(commit, 1800);
+            if (sentence.length > 2) {
+              addLine('customer', sentence);
+              convCtx.push({ role: 'customer', content: sentence });
+              if (sentence.split(' ').length >= 3) scheduleAutoAI(sentence);
+              document.getElementById('interimText').textContent = '—';
+            }
           } else {
             interim += t + ' ';
           }
@@ -597,7 +627,7 @@
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Captures customer audio only';
+    document.getElementById('capHint').textContent = 'Pick any window → check "Share system audio"';
     document.getElementById('interimText').textContent = '—';
   }
 
