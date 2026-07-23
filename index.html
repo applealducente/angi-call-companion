@@ -543,8 +543,9 @@
     document.getElementById('capBtn').innerHTML = '⏹ Stop';
     document.getElementById('sdot').classList.add('on');
     document.getElementById('stext').textContent = 'Live';
-    listeningForCustomer = true;
-    updateListeningState();
+    if (document.getElementById('capHint')) {
+      document.getElementById('capHint').textContent = message || 'Capturing call audio';
+    }
   }
 
   function stopCapture() {
