@@ -539,8 +539,14 @@
 
   let listeningForCustomer = false; // only capture customer after agent clicks Used It
 
+  let aiCooldown = false; // prevent re-firing while agent reads
+
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
+
+    // Don't fire if agent is currently reading a response
+    if (aiCooldown) return;
+
     const lower = text.toLowerCase();
     if (lower.match(/too expensive|too much|cost|price|afford|cheap/)) {
       callStage = 'price_objection';
@@ -557,7 +563,6 @@
     }
 
     updateTracker();
-    // Fire immediately — no delay
     document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
     generateAI();
   }
@@ -751,6 +756,7 @@ Respond DIRECTLY to what the customer just said. Stay on topic. 2-3 sentences. C
     }
     document.getElementById('manualInput').value = '';
     setWaiting();
+    aiCooldown = false; // ready for next customer response
 
 
   }
