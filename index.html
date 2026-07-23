@@ -464,17 +464,33 @@
     r.interimResults = true;
     r.lang = 'en-US';
 
+    let interimTimer = null;
+    let lastInterim = '';
+
     r.onresult = e => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript.trim();
         if (e.results[i].isFinal) {
           if (t.length < 2) continue;
+          clearTimeout(interimTimer);
+          lastInterim = '';
           addLine('customer', t);
           convCtx.push({ role: 'customer', content: t });
           document.getElementById('interimText').textContent = '—';
           scheduleAutoAI(t);
         } else {
-          if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
+          if (t.length > 3) {
+            document.getElementById('interimText').textContent = '📞 ' + t;
+            lastInterim = t;
+            // Fire AI after 1.5s of interim — dont wait for final
+            // This means AI starts generating while customer is still finishing sentence
+            clearTimeout(interimTimer);
+            interimTimer = setTimeout(() => {
+              if (lastInterim.length > 5 && isCapturing) {
+                scheduleAutoAI(lastInterim);
+              }
+            }, 1500);
+          }
         }
       }
     };
