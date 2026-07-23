@@ -475,10 +475,11 @@
           if (t.length < 2) continue;
           clearTimeout(interimTimer);
           lastInterim = '';
+          lastCustomerSentence = t; // always overwrite — only latest matters
           addLine('customer', t);
           convCtx.push({ role: 'customer', content: t });
           document.getElementById('interimText').textContent = '—';
-          scheduleAutoAI(t);
+          if (!aiCooldown) scheduleAutoAI(t);
         } else {
           if (t.length > 3) {
             document.getElementById('interimText').textContent = '📞 ' + t;
@@ -487,10 +488,11 @@
             // This means AI starts generating while customer is still finishing sentence
             clearTimeout(interimTimer);
             interimTimer = setTimeout(() => {
-              if (lastInterim.length > 8 && isCapturing && !aiCooldown) {
+              if (lastInterim.length > 12 && isCapturing && !aiCooldown) {
+                lastCustomerSentence = lastInterim;
                 scheduleAutoAI(lastInterim);
               }
-            }, 800);
+            }, 1200);
           }
         }
       }
@@ -542,6 +544,7 @@
 
   let aiCooldown = false; // prevent re-firing while agent reads
   let rejectionCount = 0; // track how many times customer has rejected
+  let lastCustomerSentence = ''; // only the most recent customer sentence
 
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
@@ -624,29 +627,35 @@
     const timerInterval = null;
 
     // Keep prompt small for speed — only last 8 lines + what was just said
-    // Get ONLY the single latest customer line — don't pile up context
-    const latestCustomerLine = convCtx.filter(m => m.role === 'customer').slice(-1)[0]?.content || input;
+    // Use the single latest customer sentence — not accumulated context
+    const currentLine = lastCustomerSentence || input;
 
-    // Last 4 exchanges for context (not more)
+    // Last 4 exchanges for background context only
     const recentCtx = convCtx.slice(-4)
       .map(m => (m.role === 'customer' ? 'C' : 'A') + ': ' + m.content)
       .join('\n');
 
-    const prevLines = aiHistory.slice(-2).map(r => r.substring(0, 50)).join(' | ');
+    const lastAILine = aiHistory.slice(-1)[0]?.substring(0, 80) || 'none';
     const objSummary = Object.entries(objectionLog).map(([k,v]) => k + '×' + v).join(', ') || 'none';
 
     const exitMode = rejectionCount >= 5;
-    const prompt = `LIVE CALL — respond to what customer JUST said right now.
+    const prompt = `LIVE SALES CALL.
 
-CUSTOMER JUST SAID: "${latestCustomerLine}"
+WHAT CUSTOMER JUST SAID (respond to THIS only):
+"${currentLine}"
 
-LAST FEW EXCHANGES:
+CONVERSATION CONTEXT (background only — do not repeat what was already handled):
 ${recentCtx || '(start of call)'}
 
-STAGE: ${callStage} | OBJECTIONS SO FAR: ${objSummary} | REJECTION COUNT: ${rejectionCount}
-${exitMode ? '⚠️ CUSTOMER HAS REJECTED 5+ TIMES — give a warm graceful exit line, do NOT close again' : 'AVOID REPEATING: ' + (prevLines || 'none yet')}
+CALL STAGE: ${callStage} | OBJECTIONS: ${objSummary}
+LAST LINE YOU GAVE: "${lastAILine}" — do NOT repeat this
 
-${exitMode ? 'Give a kind, warm exit that leaves the door open. No more sales pitch.' : 'CRITICAL: Respond ONLY to what customer JUST said. 2 sentences max. Close at end.'}`;
+${exitMode
+  ? '⚠️ Customer has hit a true dead end. Give warm graceful exit. No more pitch.'
+  : `Respond DIRECTLY to what customer just said above.
+Stay in context but don't rehash old objections that were already handled.
+If customer moved to a new concern — address THAT new concern.
+2 sentences MAX. Always end with a close or forward momentum.`}`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -769,6 +778,13 @@ ${exitMode ? 'Give a kind, warm exit that leaves the door open. No more sales pi
     document.getElementById('manualInput').value = '';
     setWaiting();
     aiCooldown = false; // ready for next customer response
+    // Clear last customer line so next capture starts fresh
+    lastCustomerSentence = '';
+    document.getElementById('interimText').textContent = '👂 Listening...';
+    setTimeout(() => {
+      const el = document.getElementById('interimText');
+      if (el && el.textContent === '👂 Listening...') el.textContent = '—';
+    }, 2000);
 
 
   }
