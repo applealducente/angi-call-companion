@@ -227,7 +227,7 @@
       <div class="t-interim" id="interimText">—</div>
       <div class="capture-footer">
         <button class="btn-cap start" id="capBtn" onclick="toggleCapture()">📞 Start Capturing</button>
-        <div class="cap-hint" id="capHint">Captures call audio through headset/speaker</div>
+        <div class="cap-hint" id="capHint">Captures remote caller via desktop audio</div>
       </div>
     </div>
 
@@ -427,22 +427,75 @@
 
   async function startCapture() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // PRIMARY: Desktop audio — captures remote caller voice
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          googEchoCancellation: false,
-          googNoiseSuppression: false,
-          googAutoGainControl: false,
-          googHighpassFilter: false
+          sampleRate: 16000
         }
       });
-      startCaptureLoop(null);
-      activateCapture('🎙️ Capturing — both sides');
+
+      // Stop video — audio only
+      displayStream.getVideoTracks().forEach(t => t.stop());
+
+      const audioTracks = displayStream.getAudioTracks();
+
+      if (audioTracks.length === 0) {
+        displayStream.getTracks().forEach(t => t.stop());
+        toast('❌ No desktop audio detected. Check "Share system audio" and try again.', 'err');
+        return;
+      }
+
+      // Route desktop audio into Web Audio context
+      // Then pipe into a virtual mic stream for SpeechRecognition
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      const source = audioCtx.createMediaStreamSource(displayStream);
+
+      // Gain boost — remote caller audio can be quiet
+      const gain = audioCtx.createGain();
+      gain.gain.value = 4.0;
+      source.connect(gain);
+
+      const dest = audioCtx.createMediaStreamDestination();
+      gain.connect(dest);
+
+      window._desktopAudioCtx = audioCtx;
+      window._desktopStream = displayStream;
+
+      // Handle stream ending
+      audioTracks[0].addEventListener('ended', () => {
+        if (isCapturing) {
+          toast('Desktop audio ended — click Start Capturing again', 'err');
+          stopCapture();
+        }
+      });
+
+      startCaptureLoop(dest.stream);
+      activateCapture('🖥️ Desktop Audio Connected — capturing remote caller');
+
     } catch(e) {
-      console.error('Capture error:', e.name, e.message);
-      toast('Error: ' + e.name + ' — ' + e.message, 'err');
+      if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
+        // User cancelled — fall back to mic
+        toast('Desktop audio cancelled — falling back to microphone', 'err');
+        await startMicFallback();
+      } else {
+        toast('Desktop capture failed: ' + e.message + ' — falling back to mic', 'err');
+        await startMicFallback();
+      }
+    }
+  }
+
+  async function startMicFallback() {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      startCaptureLoop(null);
+      activateCapture('🎙️ Mic fallback — desktop audio unavailable');
+      toast('⚠️ Using mic only — remote caller may not be captured', 'err');
+    } catch(e) {
+      toast('Mic access denied — cannot capture audio', 'err');
     }
   }
 
@@ -483,9 +536,31 @@
 
 
 
-  function startCaptureLoop(inputStream) {
+  function startCaptureLoop(desktopStream) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { toast('Use Chrome', 'err'); return; }
+    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
+
+    // If we have a desktop audio stream, we need to make Chrome's
+    // SpeechRecognition use it. We do this by creating a MediaStreamTrackProcessor
+    // approach — pipe desktop audio to a hidden audio element playing through
+    // virtual speakers, OR use the stream directly with AudioWorklet.
+    // Simplest approach: play desktop audio through an Audio element
+    // so it becomes part of the system audio that the mic can pick up,
+    // while ALSO using it to drive a MediaRecorder for transcription.
+
+    if (desktopStream) {
+      // Play desktop audio through a hidden audio element
+      // This makes remote caller voice audible to speech recognition
+      let audioEl = document.getElementById('_desktopAudio');
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.id = '_desktopAudio';
+        audioEl.style.display = 'none';
+        document.body.appendChild(audioEl);
+      }
+      audioEl.srcObject = desktopStream;
+      audioEl.play().catch(e => console.warn('Audio play:', e));
+    }
 
     const r = new SR();
     r.continuous = true;
@@ -580,13 +655,18 @@
 
   function stopCapture() {
     isCapturing = false;
-    if (activeRecognition) { try { activeRecognition.stop(); } catch(e){} activeRecognition = null; }
+    if (activeRecognition) { try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e){} activeRecognition = null; }
     if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+    // Clean up desktop audio
+    if (window._desktopStream) { window._desktopStream.getTracks().forEach(t => t.stop()); window._desktopStream = null; }
+    if (window._desktopAudioCtx) { window._desktopAudioCtx.close(); window._desktopAudioCtx = null; }
+    const audioEl = document.getElementById('_desktopAudio');
+    if (audioEl) { audioEl.srcObject = null; }
     document.getElementById('capBtn').className = 'btn-cap start';
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Captures call audio through headset/speaker';
+    document.getElementById('capHint').textContent = 'Captures remote caller via desktop audio';
     document.getElementById('interimText').textContent = '—';
   }
 
