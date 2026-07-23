@@ -428,10 +428,16 @@
   async function startCapture() {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
+      // CRITICAL: set isCapturing TRUE before loop starts
+      isCapturing = true;
+      document.getElementById('capBtn').className = 'btn-cap stop';
+      document.getElementById('capBtn').innerHTML = '⏹ Stop Capturing';
+      document.getElementById('sdot').classList.add('on');
+      document.getElementById('stext').textContent = 'Live';
+      document.getElementById('capHint').textContent = 'Capturing — speak or play call audio';
       startCaptureLoop(null);
-      activateCapture('🎙️ Live — turn call volume UP for customer capture');
     } catch(e) {
-      toast('Mic denied — allow microphone in Chrome', 'err');
+      toast('Mic access denied', 'err');
     }
   }
 
