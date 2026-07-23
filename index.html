@@ -427,142 +427,21 @@
 
   async function startCapture() {
     try {
-      // PRIMARY: Desktop audio — captures remote caller voice
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 16000
-        }
-      });
-
-      // Stop video — audio only
-      displayStream.getVideoTracks().forEach(t => t.stop());
-
-      const audioTracks = displayStream.getAudioTracks();
-
-      if (audioTracks.length === 0) {
-        displayStream.getTracks().forEach(t => t.stop());
-        toast('❌ No desktop audio detected. Check "Share system audio" and try again.', 'err');
-        return;
-      }
-
-      // Route desktop audio into Web Audio context
-      // Then pipe into a virtual mic stream for SpeechRecognition
-      const audioCtx = new AudioContext({ sampleRate: 16000 });
-      const source = audioCtx.createMediaStreamSource(displayStream);
-
-      // Gain boost — remote caller audio can be quiet
-      const gain = audioCtx.createGain();
-      gain.gain.value = 4.0;
-      source.connect(gain);
-
-      const dest = audioCtx.createMediaStreamDestination();
-      gain.connect(dest);
-
-      window._desktopAudioCtx = audioCtx;
-      window._desktopStream = displayStream;
-
-      // Handle stream ending
-      audioTracks[0].addEventListener('ended', () => {
-        if (isCapturing) {
-          toast('Desktop audio ended — click Start Capturing again', 'err');
-          stopCapture();
-        }
-      });
-
-      startCaptureLoop(dest.stream);
-      activateCapture('🖥️ Desktop Audio Connected — capturing remote caller');
-
-    } catch(e) {
-      if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
-        // User cancelled — fall back to mic
-        toast('Desktop audio cancelled — falling back to microphone', 'err');
-        await startMicFallback();
-      } else {
-        toast('Desktop capture failed: ' + e.message + ' — falling back to mic', 'err');
-        await startMicFallback();
-      }
-    }
-  }
-
-  async function startMicFallback() {
-    try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       startCaptureLoop(null);
-      activateCapture('🎙️ Mic fallback — desktop audio unavailable');
-      toast('⚠️ Using mic only — remote caller may not be captured', 'err');
+      activateCapture('🎙️ Live — turn call volume UP for customer capture');
     } catch(e) {
-      toast('Mic access denied — cannot capture audio', 'err');
+      toast('Mic denied — allow microphone in Chrome', 'err');
     }
   }
 
-
-  // Check if captured text is the agent reading the AI script
-  // Returns true if it should be IGNORED (agent voice)
-  function isAgentReading(text) {
-    if (!text || text.length < 5) return false;
-    const t = text.toLowerCase().trim();
-
-    // Check against all AI lines given this call
-    for (const line of aiHistory) {
-      const l = line.toLowerCase().trim();
-      // If captured text matches 40%+ of any AI line = agent is reading it
-      const words = t.split(' ');
-      const lineWords = l.split(' ');
-      let matches = 0;
-      for (const w of words) {
-        if (w.length > 3 && l.includes(w)) matches++;
-      }
-      const similarity = matches / Math.max(words.length, 1);
-      if (similarity > 0.4) return true;
-    }
-
-    // Also ignore very short filler words agents say while reading
-    const fillers = ['okay', 'ok', 'yes', 'yeah', 'right', 'sure', 'uh', 'um', 'so', 'well', 'alright'];
-    if (fillers.includes(t)) return true;
-
-    return false;
-  }
-
-  // Audio picker removed — capture starts immediately
-
-  // SINGLE STREAM — captures all audio (mic + system mixed)
-  // All speech labeled as "customer" — agent reads from AI screen so transcript = customer context
-  // AI knows agent lines from its own history
-  let activeRecognition = null;
-
-
-
+  
   function startCaptureLoop(desktopStream) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
-    // If we have a desktop audio stream, we need to make Chrome's
-    // SpeechRecognition use it. We do this by creating a MediaStreamTrackProcessor
-    // approach — pipe desktop audio to a hidden audio element playing through
-    // virtual speakers, OR use the stream directly with AudioWorklet.
-    // Simplest approach: play desktop audio through an Audio element
-    // so it becomes part of the system audio that the mic can pick up,
-    // while ALSO using it to drive a MediaRecorder for transcription.
-
-    if (desktopStream) {
-      // Play desktop audio through a hidden audio element
-      // This makes remote caller voice audible to speech recognition
-      let audioEl = document.getElementById('_desktopAudio');
-      if (!audioEl) {
-        audioEl = document.createElement('audio');
-        audioEl.id = '_desktopAudio';
-        audioEl.style.display = 'none';
-        document.body.appendChild(audioEl);
-      }
-      audioEl.srcObject = desktopStream;
-      audioEl.play().catch(e => console.warn('Audio play:', e));
-    }
-
-    const r = new SR();
+    let r = new SR();
+    activeRecognition = r;
     r.continuous = true;
     r.interimResults = true;
     r.lang = 'en-US';
@@ -575,24 +454,39 @@
           addLine('customer', t);
           convCtx.push({ role: 'customer', content: t });
           document.getElementById('interimText').textContent = '—';
-          setTimeout(() => scheduleAutoAI(t), 0);
+          // Fire AI immediately — dont wait for recognition to stop
+          scheduleAutoAI(t);
         } else {
-          if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
+          if (t.length > 1) {
+            document.getElementById('interimText').textContent = '📞 ' + t;
+          }
         }
       }
     };
 
     r.onend = () => {
-      if (isCapturing) r.start();
+      // Restart immediately — never stop listening
+      if (!isCapturing) return;
+      try { r.start(); } catch(e) {
+        // If cant restart same instance, create new one
+        r = new SR();
+        activeRecognition = r;
+        r.continuous = true;
+        r.interimResults = true;
+        r.lang = 'en-US';
+        r.onresult = activeRecognition.onresult;
+        r.onend = activeRecognition.onend;
+        r.onerror = activeRecognition.onerror;
+        try { r.start(); } catch(e2) {}
+      }
     };
 
     r.onerror = e => {
       if (e.error === 'no-speech' || e.error === 'aborted') return;
-      if (isCapturing) r.start();
+      if (isCapturing) { try { r.start(); } catch(e2) {} }
     };
 
-    activeRecognition = r;
-    r.start();
+    try { r.start(); } catch(e) { console.warn('SR start:', e); }
   }
 
 
