@@ -440,53 +440,53 @@
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
 
-    let r = new SR();
-    activeRecognition = r;
-    r.continuous = true;
-    r.interimResults = true;
-    r.lang = 'en-US';
+    let r = null;
+    let silenceTimer = null;
+    let lastTranscript = '';
 
-    r.onresult = e => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript.trim();
-        if (e.results[i].isFinal) {
-          if (t.length < 2) continue;
-          addLine('customer', t);
-          convCtx.push({ role: 'customer', content: t });
-          document.getElementById('interimText').textContent = '—';
-          // Fire AI immediately — dont wait for recognition to stop
-          scheduleAutoAI(t);
-        } else {
-          if (t.length > 1) {
-            document.getElementById('interimText').textContent = '📞 ' + t;
+    function makeAndStart() {
+      if (!isCapturing) return;
+      r = new SR();
+      activeRecognition = r;
+      r.continuous = true;
+      r.interimResults = true;
+      r.lang = 'en-US';
+
+      r.onresult = e => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript.trim();
+          if (e.results[i].isFinal) {
+            if (t.length < 2) continue;
+            lastTranscript = t;
+            addLine('customer', t);
+            convCtx.push({ role: 'customer', content: t });
+            document.getElementById('interimText').textContent = '—';
+            // Fire AI immediately on every final result
+            clearTimeout(silenceTimer);
+            scheduleAutoAI(t);
+          } else {
+            if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
           }
         }
-      }
-    };
+      };
 
-    r.onend = () => {
-      // Restart immediately — never stop listening
-      if (!isCapturing) return;
+      r.onend = () => {
+        if (!isCapturing) return;
+        // Restart immediately with no delay
+        setTimeout(makeAndStart, 50);
+      };
+
+      r.onerror = e => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        if (isCapturing) setTimeout(makeAndStart, 100);
+      };
+
       try { r.start(); } catch(e) {
-        // If cant restart same instance, create new one
-        r = new SR();
-        activeRecognition = r;
-        r.continuous = true;
-        r.interimResults = true;
-        r.lang = 'en-US';
-        r.onresult = activeRecognition.onresult;
-        r.onend = activeRecognition.onend;
-        r.onerror = activeRecognition.onerror;
-        try { r.start(); } catch(e2) {}
+        if (isCapturing) setTimeout(makeAndStart, 200);
       }
-    };
+    }
 
-    r.onerror = e => {
-      if (e.error === 'no-speech' || e.error === 'aborted') return;
-      if (isCapturing) { try { r.start(); } catch(e2) {} }
-    };
-
-    try { r.start(); } catch(e) { console.warn('SR start:', e); }
+    makeAndStart();
   }
 
 
@@ -602,10 +602,9 @@
     }
 
     updateTracker();
-    autoTimer = setTimeout(() => {
-      document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
-      generateAI();
-    }, 300);
+    // Fire immediately — no delay
+    document.getElementById('manualInput').value = 'Customer just said: "' + text + '"';
+    generateAI();
   }
 
   function updateListeningState() {
