@@ -400,6 +400,7 @@
     aiHistory = [];
     objectionLog = {};
     callStage = 'discovery';
+    rejectionCount = 0;
     listeningForCustomer = true;
     document.getElementById('callNumber').textContent = '#' + (sessionHistory.length + 1);
     document.getElementById('transcriptFeed').innerHTML = '<div class="t-empty">🎧<br><br>Start capturing to see live transcript.</div>';
@@ -486,10 +487,10 @@
             // This means AI starts generating while customer is still finishing sentence
             clearTimeout(interimTimer);
             interimTimer = setTimeout(() => {
-              if (lastInterim.length > 5 && isCapturing) {
+              if (lastInterim.length > 8 && isCapturing && !aiCooldown) {
                 scheduleAutoAI(lastInterim);
               }
-            }, 1500);
+            }, 800);
           }
         }
       }
@@ -540,6 +541,7 @@
   let listeningForCustomer = false; // only capture customer after agent clicks Used It
 
   let aiCooldown = false; // prevent re-firing while agent reads
+  let rejectionCount = 0; // track how many times customer has rejected
 
   function scheduleAutoAI(text) {
     clearTimeout(autoTimer);
@@ -551,15 +553,22 @@
     if (lower.match(/too expensive|too much|cost|price|afford|cheap/)) {
       callStage = 'price_objection';
       objectionLog['price'] = (objectionLog['price'] || 0) + 1;
-    } else if (lower.match(/think about|call back|not ready|need time|let me|maybe later/)) {
+      rejectionCount++;
+    } else if (lower.match(/think about|call back|not ready|need time|let me|maybe later|not interested|no thank/)) {
       callStage = 'stall_objection';
       objectionLog['stall'] = (objectionLog['stall'] || 0) + 1;
+      rejectionCount++;
     } else if (lower.match(/membership|commit|monthly|subscribe|contract/)) {
       callStage = 'membership_objection';
       objectionLog['membership'] = (objectionLog['membership'] || 0) + 1;
+      rejectionCount++;
     } else if (lower.match(/cancel|fee|termination|etf/)) {
       callStage = 'etf_objection';
       objectionLog['etf'] = (objectionLog['etf'] || 0) + 1;
+      rejectionCount++;
+    // Only count TRUE unrecoverable hard rejections
+    } else if (lower.match(/scam|fraud|fake|report you|bbb|better business|lawsuit|police|lawyer|attorney|never pay|free or nothing|get out|hang up|stop calling|do not call|remove my number|i said no|absolutely not|over my dead body/)) {
+      rejectionCount++;
     }
 
     updateTracker();
@@ -615,26 +624,29 @@
     const timerInterval = null;
 
     // Keep prompt small for speed — only last 8 lines + what was just said
-    const recentCtx = convCtx.slice(-8)
+    // Get ONLY the single latest customer line — don't pile up context
+    const latestCustomerLine = convCtx.filter(m => m.role === 'customer').slice(-1)[0]?.content || input;
+
+    // Last 4 exchanges for context (not more)
+    const recentCtx = convCtx.slice(-4)
       .map(m => (m.role === 'customer' ? 'C' : 'A') + ': ' + m.content)
       .join('\n');
 
-    const lastLine = convCtx.filter(m => m.role === 'customer').slice(-1)[0]?.content || input;
-    const prevLines = aiHistory.slice(-3).map(r => '"' + r.substring(0, 60) + '..."').join(', ');
+    const prevLines = aiHistory.slice(-2).map(r => r.substring(0, 50)).join(' | ');
     const objSummary = Object.entries(objectionLog).map(([k,v]) => k + '×' + v).join(', ') || 'none';
 
-    const prompt = `LIVE CALL — agent needs next line RIGHT NOW.
+    const exitMode = rejectionCount >= 5;
+    const prompt = `LIVE CALL — respond to what customer JUST said right now.
 
-WHAT CUSTOMER JUST SAID: "${lastLine}"
+CUSTOMER JUST SAID: "${latestCustomerLine}"
 
-RECENT CONVERSATION:
+LAST FEW EXCHANGES:
 ${recentCtx || '(start of call)'}
 
-STAGE: ${callStage} | OBJECTIONS: ${objSummary}
-DON'T REPEAT THESE LINES: ${prevLines || 'none yet'}
-MANUAL INPUT: ${input}
+STAGE: ${callStage} | OBJECTIONS SO FAR: ${objSummary} | REJECTION COUNT: ${rejectionCount}
+${exitMode ? '⚠️ CUSTOMER HAS REJECTED 5+ TIMES — give a warm graceful exit line, do NOT close again' : 'AVOID REPEATING: ' + (prevLines || 'none yet')}
 
-Respond DIRECTLY to what the customer just said. Stay on topic. 2-3 sentences. Close at end.`;
+${exitMode ? 'Give a kind, warm exit that leaves the door open. No more sales pitch.' : 'CRITICAL: Respond ONLY to what customer JUST said. 2 sentences max. Close at end.'}`;
 
     try {
       const res = await fetch('/api/chat', {
