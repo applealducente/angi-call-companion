@@ -419,7 +419,7 @@
     document.getElementById('tpBody').innerHTML = `<div class="tp-waiting"><div class="tp-waiting-icon">🤖</div><div class="tp-waiting-text">Your exact next line will appear here.<br>Tap an objection or type the situation.</div></div>`;
   }
 
-  // AUDIO CAPTURE
+  // AUDIO CAPTURE — clean simple version
   async function toggleCapture() {
     if (isCapturing) stopCapture();
     else await startCapture();
@@ -428,148 +428,80 @@
   async function startCapture() {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      // CRITICAL: set isCapturing TRUE before loop starts
       isCapturing = true;
       document.getElementById('capBtn').className = 'btn-cap stop';
       document.getElementById('capBtn').innerHTML = '⏹ Stop Capturing';
       document.getElementById('sdot').classList.add('on');
       document.getElementById('stext').textContent = 'Live';
-      document.getElementById('capHint').textContent = 'Capturing — speak or play call audio';
-      startCaptureLoop(null);
+      document.getElementById('capHint').textContent = 'Capturing audio...';
+      startSR();
     } catch(e) {
-      toast('Mic access denied', 'err');
-    }
-  }
-
-  
-  function startCaptureLoop(desktopStream) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
-
-    let r = null;
-    let silenceTimer = null;
-    let lastTranscript = '';
-
-    function makeAndStart() {
-      if (!isCapturing) return;
-      r = new SR();
-      activeRecognition = r;
-      r.continuous = true;
-      r.interimResults = true;
-      r.lang = 'en-US';
-
-      r.onresult = e => {
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript.trim();
-          if (e.results[i].isFinal) {
-            if (t.length < 2) continue;
-            lastTranscript = t;
-            addLine('customer', t);
-            convCtx.push({ role: 'customer', content: t });
-            document.getElementById('interimText').textContent = '—';
-            // Fire AI immediately on every final result
-            clearTimeout(silenceTimer);
-            scheduleAutoAI(t);
-          } else {
-            if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
-          }
-        }
-      };
-
-      r.onend = () => {
-        if (!isCapturing) return;
-        // Restart immediately with no delay
-        setTimeout(makeAndStart, 50);
-      };
-
-      r.onerror = e => {
-        if (e.error === 'no-speech' || e.error === 'aborted') return;
-        if (isCapturing) setTimeout(makeAndStart, 100);
-      };
-
-      try { r.start(); } catch(e) {
-        if (isCapturing) setTimeout(makeAndStart, 200);
-      }
-    }
-
-    makeAndStart();
-  }
-
-
-  function setupVAD(stream, makeRec) {
-    const audioCtx = new AudioContext();
-    const source = audioCtx.createMediaStreamSource(stream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-    analyser.smoothingTimeConstant = 0.3;
-    source.connect(analyser);
-
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    let vadActive = false;
-    let vadTimer = null;
-    let currentRec = null;
-    const THRESHOLD = 30; // audio level threshold
-
-    function checkVAD() {
-      if (!isCapturing) { audioCtx.close(); return; }
-      analyser.getByteFrequencyData(data);
-      const avg = data.reduce((a,b) => a+b) / data.length;
-      const speaking = avg > THRESHOLD;
-
-      if (speaking && !vadActive) {
-        // Customer started speaking - start recognition
-        vadActive = true;
-        clearTimeout(vadTimer);
-        if (!currentRec) {
-          currentRec = makeRec();
-          activeRecognition = currentRec;
-          try { currentRec.start(); } catch(e) {}
-        }
-      } else if (!speaking && vadActive) {
-        // Silence - stop after 1.5s
-        clearTimeout(vadTimer);
-        vadTimer = setTimeout(() => {
-          vadActive = false;
-          if (currentRec) {
-            try { currentRec.stop(); } catch(e) {}
-            currentRec = null;
-            activeRecognition = null;
-          }
-        }, 1500);
-      }
-      requestAnimationFrame(checkVAD);
-    }
-    checkVAD();
-  }
-
-    function activateCapture(message) {
-    isCapturing = true;
-    listeningForCustomer = true;
-    document.getElementById('capBtn').className = 'btn-cap stop';
-    document.getElementById('capBtn').innerHTML = '⏹ Stop';
-    document.getElementById('sdot').classList.add('on');
-    document.getElementById('stext').textContent = 'Live';
-    if (document.getElementById('capHint')) {
-      document.getElementById('capHint').textContent = message || 'Capturing call audio';
+      toast('Mic access denied — allow microphone in Chrome', 'err');
     }
   }
 
   function stopCapture() {
     isCapturing = false;
-    if (activeRecognition) { try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e){} activeRecognition = null; }
-    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
-    // Clean up desktop audio
-    if (window._desktopStream) { window._desktopStream.getTracks().forEach(t => t.stop()); window._desktopStream = null; }
-    if (window._desktopAudioCtx) { window._desktopAudioCtx.close(); window._desktopAudioCtx = null; }
-    const audioEl = document.getElementById('_desktopAudio');
-    if (audioEl) { audioEl.srcObject = null; }
+    if (activeRecognition) {
+      try { activeRecognition.onend = null; activeRecognition.stop(); } catch(e) {}
+      activeRecognition = null;
+    }
     document.getElementById('capBtn').className = 'btn-cap start';
     document.getElementById('capBtn').innerHTML = '🎙️ Start Capturing';
     document.getElementById('sdot').classList.remove('on');
     document.getElementById('stext').textContent = 'Ready';
-    document.getElementById('capHint').textContent = 'Captures remote caller via desktop audio';
+    document.getElementById('capHint').textContent = 'Captures call audio';
     document.getElementById('interimText').textContent = '—';
   }
+
+  function startSR() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast('Use Chrome for speech recognition', 'err'); return; }
+
+    const r = new SR();
+    activeRecognition = r;
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = 'en-US';
+
+    r.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal) {
+          if (t.length < 2) continue;
+          addLine('customer', t);
+          convCtx.push({ role: 'customer', content: t });
+          document.getElementById('interimText').textContent = '—';
+          scheduleAutoAI(t);
+        } else {
+          if (t.length > 1) document.getElementById('interimText').textContent = '📞 ' + t;
+        }
+      }
+    };
+
+    r.onend = () => {
+      if (!isCapturing) return;
+      // Restart same instance
+      try { r.start(); } catch(e) {
+        // If same instance fails, start fresh
+        setTimeout(startSR, 100);
+      }
+    };
+
+    r.onerror = e => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      if (isCapturing) setTimeout(startSR, 200);
+    };
+
+    try { r.start(); } catch(e) {
+      if (isCapturing) setTimeout(startSR, 300);
+    }
+  }
+
+  // Legacy stubs — no longer used
+  function startCaptureLoop() {}
+  function activateCapture() {}
+  function setupVAD() {}
 
     function addLine(role, text) {
     const feed = document.getElementById('transcriptFeed');
